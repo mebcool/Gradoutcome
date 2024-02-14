@@ -1,0 +1,41 @@
+{% extends "base.html" %}
+{% block title %}Create Student{% endblock %}
+{% block body %}
+    <h1>Create Student</h1>
+    {% if error %}
+        <p style="color: red;">{{ error }}</p>
+    {% endif %}
+    <form method="post" action="/createstudent">
+        <label for="name">Name:</label>
+        <input type="text" name="name" required><br>
+        <label for="email">Email:</label>
+        <input type="email" name="email" ><br>
+        <label for="phone">Phone:</label>
+        <input type="text" name="phone" ><br>
+        <label for="degree">Degree:</label>
+        <input type="text" name="degree"><br>
+        <label for="graduation_year">Graduation Year:</label>
+        <input type="number" name="graduation_year"><br>
+
+        <!-- Fields for School Information -->
+        <label for="school_name">School Name:</label>
+        <input type="text" name="school_name" required><br>
+        <label for="school_type">School Type (Medical or Grad):</label>
+        <input type="text" name="school_type" required><br>
+
+        <!-- Fields for Application Information -->
+        <label for="yearapplied">Year Applied:</label>
+        <input type="number" name="yearapplied" required><br>
+        <label for="accepted">Accepted?</label>
+        <input type="checkbox" name="accepted"><br>
+        <label for="reapp_accepted_same_field">Reapplied and Accepted (Same Field)?</label>
+        <input type="checkbox" name="reapp_accepted_same_field"><br>
+        <label for="reapp_accepted_diff_field">Reapplied and Accepted (Diff Field)?</label>
+        <input type="checkbox" name="reapp_accepted_diff_field"><br>
+
+        <button type="submit">Create Student</button>
+    </form>
+{% endblock %}
+
+
+

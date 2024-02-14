@@ -1,0 +1,32 @@
+
+
+tr:nth-child(even){
+    background-color: gray;
+}
+
+
+th{
+    background-color: black;
+    color:bisque;
+}
+
+nav ul {
+    list-style-type: none;
+}
+
+nav ul li {
+    display: inline;
+    padding: 20px;
+}
+
+a:visited{
+    color:red;
+}
+
+a:hover{
+    color:bisque;
+}
+
+a:link{
+    color:crimson;
+}

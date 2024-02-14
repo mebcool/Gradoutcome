@@ -1,0 +1,42 @@
+{% extends "base.html" %}
+{% block title %}Student Profile{% endblock %}
+{% block body %}
+    <h1>Student Profile</h1>
+    <p>Student Name: {{ student.name }}</p>
+    <p>Phone: {{ student.phone }}</p>
+    <p>Email: {{ student.email }}</p>
+    <p>School Type: {{ student.school.typeof if student.school else 'N/A' }}</p>
+    <p>School Name: {{ student.school.name if student.school else 'N/A' }}</p>
+    <p>Year Applied: {{ student.application.yearapplied|default('null') if student.application else 'N/A' }}</p>
+    <p>Accepted: {{ student.application.accepted|default('null') if student.application else 'N/A' }}</p>
+    <p>Reapplied and Accepted (Same Field): {{ student.application.reapp_accepted_same_field|default('null') if student.application else 'N/A' }}</p>
+    <p>Reapplied and Accepted (Diff Field): {{ student.application.reapp_accepted_diff_field|default('null') if student.application else 'N/A' }}</p>
+    <p>Degree: {{ student.degree if student.degree else 'N/A' }}</p>
+    <p>Graduation Year: {{ student.graduation_year|default('N/A') }}</p>
+
+
+    <h2>Comments:</h2>
+    <ul>
+        {% for comment in student.comments %}
+            <li>{{ comment.text }}</li>
+        {% endfor %}
+    </ul>
+
+    <form method="post" action="{{ url_for('add_comment', id=student.id) }}">
+        <label for="comment">Add Comment:</label>
+        <textarea id="comment" name="comment" required></textarea>
+        <button type="submit">Submit Comment</button>
+    </form>
+
+    <a href="{{ url_for('updatestudent', id=student.id) }}">Update</a>
+    <button onclick="deleteStudent({{ student.id }})">Delete</button>
+    <a href="{{ url_for('view_db') }}">Back to View All Students</a>
+
+    <script>
+        function deleteStudent(studentId) {
+            if (confirm("Are you sure you want to delete this student record?")) {
+                window.location.href = "/deletestudent/" + studentId;
+            }
+        }
+    </script>
+{% endblock %}
