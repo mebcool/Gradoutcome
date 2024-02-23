@@ -4,7 +4,8 @@ from flask_login import *
 from flask import flash
 from flask import render_template, redirect, url_for
 from sqlalchemy import func
-
+import mysql.connector
+from mysql.connector import Error
 
 app = Flask(__name__, static_url_path='/static')
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///database.sqlite'
@@ -12,6 +13,26 @@ app.config['SECRET_KEY'] = 'theSecretKey'
 db = SQLAlchemy(app)
 login_manager = LoginManager(app)
 login_manager.init_app(app)
+
+db_config = {
+    'user': 'meddy',
+    'password': 'student195',
+    'host': 'radyweb.wsc.western.edu',
+    'database': 'post_grad_outcome_bio'
+}
+def execute_query(query, params=None):
+    try:
+        cnx = mysql.connector.connect(**db_config)
+        cursor = cnx.cursor()
+        cursor.execute(query, params)
+        result = cursor.fetchall()
+        return result
+    except mysql.connector.Error as err:
+        print("Error:", err)
+    finally:
+        if 'cnx' in locals() and cnx.is_connected():
+            cursor.close()
+            cnx.close()
 
 class Student(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -249,98 +270,73 @@ def updatestudent(id):
 
     return render_template('updatestudent.html', student=student)
 
-@app.route('/queries', methods=['GET', 'POST'])
-@login_required
+@app.route('/queries')
 def queries():
-    total_acceptance_rate = calculate_total_acceptance_rate()
+    query_total_accepted = "SELECT COUNT(*) FROM APPLICATION WHERE accepted = 1"
+    query_total_applications = "SELECT COUNT(*) FROM APPLICATION"
+    total_accepted = execute_query(query_total_accepted)[0][0]
+    total_applications = execute_query(query_total_applications)[0][0]
+    total_acceptance_rate = round((total_accepted / total_applications) * 100, 2) if total_applications > 0 else 0.0
 
-    acceptance_rate_by_year = None
-    acceptance_rate_by_school_type = None
-    acceptance_rate_by_application_type = None
-    success_rate_for_reapplicants = None
+    query_school_types = "SELECT DISTINCT school_type FROM SCHOOL"
+    school_types = [row[0] for row in execute_query(query_school_types)]
 
-    if request.method == 'POST':
-        start_year = request.form.get('start_year')
-        end_year = request.form.get('end_year')
-        school_type = request.form.get('school_type')
-        application_type = request.form.get('application_type')
+    query_application_types = "SELECT DISTINCT program FROM APPLICATION"
+    application_types = [row[0] for row in execute_query(query_application_types)]
 
-        if start_year and end_year:
-            acceptance_rate_by_year = calculate_acceptance_rate_by_year(start_year, end_year)
+    query_school_names = "SELECT DISTINCT school_name FROM SCHOOL"
+    school_names = [row[0] for row in execute_query(query_school_names)]
+    return render_template('queries.html',  total_acceptance_rate=total_acceptance_rate, school_types=school_types,application_types=application_types, school_names=school_names)
 
-        if school_type:
-            acceptance_rate_by_school_type = calculate_acceptance_rate_by_school_type(school_type)
+@app.route('/query_acceptance_by_year', methods=['POST'])
+def query_acceptance_by_year():
+    start_year = request.form['start_year']
+    end_year = request.form['end_year']
+    query_total = "SELECT COUNT(*) FROM APPLICATION WHERE year_applied BETWEEN %s AND %s"
+    query_accepted = "SELECT COUNT(*) FROM APPLICATION WHERE year_applied BETWEEN %s AND %s AND accepted = 1"
+    total = execute_query(query_total, (start_year, end_year))[0][0]
+    accepted = execute_query(query_accepted, (start_year, end_year))[0][0]
+    acceptance_rate = round((accepted / total) * 100, 2)if total > 0 else 0.0
+    return render_template('queries.html', acceptance_rate_by_year=acceptance_rate)
 
-        if application_type:
-            acceptance_rate_by_application_type = calculate_acceptance_rate_by_application_type(application_type)
+@app.route('/query_acceptance_by_school_type', methods=['POST'])
+def query_acceptance_by_school_type():
+    school_type = request.form['school_type']
+    query_total = "SELECT COUNT(*) FROM APPLICATION JOIN SCHOOL ON APPLICATION.school_id = SCHOOL.school_id WHERE SCHOOL.school_type = %s"
+    query_accepted = "SELECT COUNT(*) FROM APPLICATION JOIN SCHOOL ON APPLICATION.school_id = SCHOOL.school_id WHERE SCHOOL.school_type = %s AND APPLICATION.accepted = 1"
+    total = execute_query(query_total, (school_type,))[0][0]
+    accepted = execute_query(query_accepted, (school_type,))[0][0]
+    acceptance_rate = round((accepted / total) * 100, 2) if total > 0 else 0.0
+    return render_template('queries.html', acceptance_rate_by_school_type=acceptance_rate)
 
-        success_rate_for_reapplicants = calculate_success_rate_for_reapplicants()
+@app.route('/query_acceptance_by_application_type', methods=['POST'])
+def query_acceptance_by_application_type():
+    application_type = request.form['application_type']
+    query_total = "SELECT COUNT(*) FROM APPLICATION WHERE program = %s"
+    query_accepted = "SELECT COUNT(*) FROM APPLICATION WHERE program = %s AND accepted = 1"
+    total = execute_query(query_total, (application_type,))[0][0]
+    accepted = execute_query(query_accepted, (application_type,))[0][0]
+    acceptance_rate = round((accepted / total) * 100, 2) if total > 0 else 0.0
+    return render_template('queries.html', acceptance_rate_by_application_type=acceptance_rate)
 
-    return render_template('queries.html',
-                           total_acceptance_rate=total_acceptance_rate,
-                           acceptance_rate_by_year=acceptance_rate_by_year,
-                           acceptance_rate_by_school_type=acceptance_rate_by_school_type,
-                           acceptance_rate_by_application_type=acceptance_rate_by_application_type,
-                           success_rate_for_reapplicants=success_rate_for_reapplicants)
+@app.route('/query_success_rate_reapplicants', methods=['POST'])
+def query_success_rate_reapplicants():
+    query_total_students = "SELECT COUNT(DISTINCT stu_id) FROM APPLICATION"
+    query_reapplicants = "SELECT COUNT(*) FROM (SELECT stu_id FROM APPLICATION GROUP BY stu_id HAVING COUNT(*) > 1) AS reapplicants"
+    total_students = execute_query(query_total_students)[0][0]
+    reapplicants = execute_query(query_reapplicants)[0][0]
+    success_rate_reapplicants = round((reapplicants / total_students) * 100, 2) if total_students > 0 else 0.0
+    return render_template('queries.html', success_rate_reapplicants=success_rate_reapplicants)
 
-
-def calculate_total_acceptance_rate():
-    total_accepted = Application.query.filter_by(accepted=True).count()
-    total_applications = Application.query.count()
-
-    return calculate_percentage(total_accepted, total_applications)
-
-
-def calculate_acceptance_rate_by_year(start_year, end_year):
-    accepted_count = Application.query.filter(Application.yearapplied >= start_year,
-                                              Application.yearapplied <= end_year,
-                                              Application.accepted == True).count()
-    total_applications = Application.query.filter(Application.yearapplied >= start_year,
-                                                  Application.yearapplied <= end_year).count()
-
-    return calculate_percentage(accepted_count, total_applications)
-
-
-def calculate_acceptance_rate_by_school_type(school_type):
-    accepted_count = Application.query.join(Student).join(School).filter(School.typeof == school_type,
-                                                                         Application.accepted == True).count()
-    total_applications = Application.query.join(Student).join(School).filter(School.typeof == school_type).count()
-
-    acceptance_rate = calculate_percentage(accepted_count, total_applications)
-
-    return f"{acceptance_rate}%"
-
-
-def calculate_acceptance_rate_by_application_type(application_type):
-    accepted_count = Application.query.filter(func.lower(Application.reapp_accepted_same_field) == func.lower(application_type),
-                                              Application.accepted == True).count()
-    total_applications = Application.query.filter(func.lower(Application.reapp_accepted_same_field) == func.lower(application_type)).count()
-
-    return calculate_percentage(accepted_count, total_applications)
-
-
-def calculate_success_rate_for_reapplicants():
-    reapplicants = Application.query.filter(Application.reapp_accepted_same_field.isnot(None)).all()
-    success_count = sum(1 for app in reapplicants if app.accepted)
-
-    return calculate_percentage(success_count, len(reapplicants))
-
-
-def calculate_percentage(numerator, denominator):
-    if denominator == 0:
-        return 0
-    return int((numerator / denominator) * 100)
-
-@app.route('/acceptance_rate_by_year', methods=['POST'])
-@login_required
-def acceptance_rate_by_year():
-    start_year = request.form.get('start_year')
-    end_year = request.form.get('end_year')
-
-    if start_year and end_year:
-        return calculate_acceptance_rate_by_year(start_year, end_year)
-
-    return "Invalid input for year range"
+@app.route('/query_acceptance_by_school_name', methods=['POST'])
+def query_acceptance_by_school_name():
+    school_name = request.form['school_name']
+    query_total = "SELECT COUNT(*) FROM APPLICATION JOIN SCHOOL ON APPLICATION.school_id = SCHOOL.school_id WHERE SCHOOL.school_name = %s"
+    query_accepted = "SELECT COUNT(*) FROM APPLICATION JOIN SCHOOL ON APPLICATION.school_id = SCHOOL.school_id WHERE SCHOOL.school_name = %s AND APPLICATION.accepted = 1"
+    total = execute_query(query_total, (school_name,))[0][0]
+    accepted = execute_query(query_accepted, (school_name,))[0][0]
+    acceptance_rate = round((accepted / total) * 100, 2) if total > 0 else 0.0
+    return render_template('queries.html', acceptance_rate_by_school_name=acceptance_rate)
 
 @app.route('/advanced_search', methods=['POST'])
 @login_required
@@ -401,33 +397,6 @@ def advanced_search():
                            acceptance_rate_by_application_type=None,
                            success_rate_for_reapplicants=None,
                            search_results=search_results)
-
-@app.route('/acceptance_rate_by_school_type', methods=['POST'])
-@login_required
-def acceptance_rate_by_school_type():
-    school_type = request.form.get('school_type')
-
-    if school_type:
-        return calculate_acceptance_rate_by_school_type(school_type)
-
-    return "Invalid input for school type"
-
-
-@app.route('/acceptance_rate_by_application_type', methods=['POST'])
-@login_required
-def acceptance_rate_by_application_type():
-    application_type = request.form.get('application_type')
-
-    if application_type:
-        return calculate_acceptance_rate_by_application_type(application_type)
-
-    return "Invalid input for application type"
-
-
-@app.route('/success_rate_for_reapplicants', methods=['POST'])
-@login_required
-def success_rate_for_reapplicants():
-    return calculate_success_rate_for_reapplicants()
 
 
 @app.route('/logout')
