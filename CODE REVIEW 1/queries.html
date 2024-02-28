@@ -1,0 +1,62 @@
+<!--BEGIN CODE REVIEW-->
+{% extends "base.html" %}
+{% block title %}Queries{% endblock %}
+{% block body %}
+    <h1>Database Queries</h1>
+
+     <h1>Total Acceptance Rate</h1>
+    <p>Total Acceptance Rate: {{ total_acceptance_rate }}%</p>
+
+    <h1>Acceptance Rate by Year Range</h1>
+    <form action="/query_acceptance_by_year" method="post">
+        <label for="start_year">Start Year:</label>
+        <input type="text" id="start_year" name="start_year"><br><br>
+        <label for="end_year">End Year:</label>
+        <input type="text" id="end_year" name="end_year"><br><br>
+        <input type="submit" value="Submit">
+    </form>
+    <p>Acceptance Rate in the specified year range: {{ acceptance_rate_by_year }}%</p>
+
+    <h1>Acceptance Rate by School Type</h1>
+    <form action="/query_acceptance_by_school_type" method="post">
+    <label for="school_type">School Type:</label>
+    <select id="school_type" name="school_type">
+        {% for type in school_types %}
+            <option value="{{ type }}">{{ type }}</option>
+        {% endfor %}
+    </select><br><br>
+    <input type="submit" value="Submit">
+</form>
+<p>Acceptance Rate for the specified school type: {{ acceptance_rate_by_school_type }}%</p>
+
+    <h1>Acceptance Rate by School Name</h1>
+    <form action="/query_acceptance_by_school_name" method="post">
+    <label for="school_name">School name:</label>
+    <select id="school_name" name="school_name">
+        {% for name in school_names %}
+            <option value="{{ name }}">{{ name }}</option>
+        {% endfor %}
+    </select><br><br>
+    <input type="submit" value="Submit">
+</form>
+<p>Acceptance Rate for the specified school type: {{ acceptance_rate_by_school_name }}%</p>
+
+ <h1>Acceptance Rate by Application Type</h1>
+<form action="/query_acceptance_by_application_type" method="post">
+    <label for="application_type">Application Type:</label>
+    <select id="application_type" name="application_type">
+        {% for type in application_types %}
+            <option value="{{ type }}">{{ type }}</option>
+        {% endfor %}
+    </select><br><br>
+    <input type="submit" value="Submit">
+</form>
+<p>Acceptance Rate for the specified application type: {{ acceptance_rate_by_application_type }}%</p>
+
+    <h1>Success Rate for Reapplicants</h1>
+    <form action="/query_success_rate_reapplicants" method="post">
+        <input type="submit" value="Submit">
+    </form>
+    <p>Success Rate for students who have applied more than once: {{ success_rate_reapplicants }}%</p>
+
+{% endblock %}

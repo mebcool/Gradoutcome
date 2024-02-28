@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <link href="/static/style.css" rel="stylesheet">
+    <title>{% block title %}{% endblock %}</title>
+</head>
+<body>
+    <nav>
+        <ul>
+            {% if current_user.is_authenticated %}
+                <li><a href="/">Home</a></li>
+                <li><a href="/createuser">Create new user</a></li>
+                <li><a href="/view_users">View All Users</a></li>
+                <li><a href="/updateuser">Update user</a></li>
+                <li><a href="/view_db">View DB of students</a></li>
+                <li><a href="/createstudent">add new student</a></li>
+                <li><a href="/queries">queries</a></li>
+                <li><a href="/logout">Logout</a></li>
+            {% else %}
+                <li><a href="/">Home</a></li>
+                <li><a href="/createuser">Create new user</a></li>
+                <li><a href="/login">Login</a></li>
+            {% endif %}
+        </ul>
+    </nav>
+
+    {% with messages = get_flashed_messages() %}
+        {% if messages %}
+            <ul class="flashes">
+                {% for message in messages %}
+                    <li>{{ message }}</li>
+                {% endfor %}
+            </ul>
+        {% endif %}
+    {% endwith %}
+
+    {% block body %}{% endblock %}
+</body>
+</html>
