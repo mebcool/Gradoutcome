@@ -14,6 +14,10 @@ db = SQLAlchemy(app)
 login_manager = LoginManager(app)
 login_manager.init_app(app)
 
+today = datetime.date.today()
+year = today.year
+ten_years_ago = year - 10
+
 db_config = {
     'user': 'meddy',
     'password': 'student195',
@@ -24,13 +28,16 @@ def execute_query(query, params=None):
     try:
         cnx = mysql.connector.connect(**db_config)
         cursor = cnx.cursor()
+        print(f"Executing query: {query} with params: {params}")
         cursor.execute(query, params)
         result = cursor.fetchall()
+        print(result)
+        print(f"Query returned {len(result)} rows")
         return result
     except mysql.connector.Error as err:
-        print("Error:", err)
+        print(f"Error: {err}")
     finally:
-        if 'cnx' in locals() and cnx.is_connected():
+        if cnx.is_connected():
             cursor.close()
             cnx.close()
 
