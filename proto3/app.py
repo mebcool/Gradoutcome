@@ -106,6 +106,18 @@ def createuser():
 
     return render_template('createuser.html', error=error)
 
+def execute_insert(insert, params):
+    try:
+        cnx = mysql.connector.connect(**db_config)
+        cursor = cnx.cursor()
+        cursor.execute(insert, params)
+        cnx.commit()
+    except mysql.connector.Error as err:
+        print("Error: ", err)
+    finally:
+        if 'cnx' in locals() and cnx.is_connected():
+            cursor.close()
+            cnx.close()
 @app.route('/createstudent', methods=['GET', 'POST'])
 @login_required
 def createstudent():
@@ -116,41 +128,49 @@ def createstudent():
         school_name = request.form.get('school_name')
         school_type = request.form.get('school_type')
         yearapplied = request.form.get('yearapplied')
+        program = request.form.get('program')
         accepted = 'accepted' in request.form
-        reapp_accepted_same_field = 'reapp_accepted_same_field' in request.form
-        reapp_accepted_diff_field = 'reapp_accepted_diff_field' in request.form
         degree = request.form.get('degree')
         graduation_year = request.form.get('graduation_year')
 
+        findStudent = ("SELECT stu_name FROM Student WHERE stu_name = %s")
+        stuParams = (name)
+        studentExists = execute_query(findStudent, stuParams)
+        print("Student exists:", studentExists)
 
-        new_student = Student(name=name, phone=phone, email=email)
-        new_student.degree = degree
-        new_student.graduation_year = graduation_year
-        db.session.add(new_student)
-        db.session.commit()
+        if studentExists == None:
+            insertStudentCMD = ("INSERT INTO student (stu_name, stu_phone, stu_email, stu_year_grad, stu_degree)"
+                            "VALUES (%s, %s, %s, %s, %s)")
+            studentData = (name, phone, email, graduation_year, degree)
+            execute_insert(insertStudentCMD, studentData)
 
-        # Create a new school instance and associate it with the newly created student
-        new_school = School(name=school_name, typeof=school_type, student=new_student)
-        db.session.add(new_school)
-        db.session.commit()
+        findSchool = ("SELECT school_name FROM School WHERE school_name = %s")
+        schoolParams = (school_name)
+        schoolExists = execute_query(findSchool, schoolParams)
 
-        # Create a new application instance and associate it with the newly created student and school
-        new_application = Application(
-            yearapplied=yearapplied,
-            accepted=accepted,
-            reapp_accepted_same_field=reapp_accepted_same_field,
-            reapp_accepted_diff_field=reapp_accepted_diff_field,
-            student=new_student,
-            school_id=new_school.id
-        )
-        db.session.add(new_application)
-        db.session.commit()
+        if schoolExists == None:
+            insertSchoolCMD = ("INSERT INTO SCHOOL "
+                  "(school_name, school_type) "
+                  "VALUES (%s, %s)")
+            schoolData = (school_name, school_type)
+            execute_insert(insertSchoolCMD, schoolData)
+
+        findStuId = ("SELECT stu_id FROM Student WHERE stu_name = %s")
+        stuId = execute_query(findStuId, stuParams)
+
+        findSchoolId = ("SELECT school_id FROM School WHERE school_name = %s")
+        schoolId = execute_query(findSchoolId, schoolParams)
+
+        insertApplicationCMD = ("INSERT INTO Application (year_applied, program, accepted, stu_id, school_id"
+                                "VALUES (%s, %s, %s, %s, %s")
+        applicationData = (yearapplied, program, accepted, stuId, schoolId)
+        execute_insert(insertApplicationCMD, applicationData)
+
 
         # Add print statements for debugging
         print(f"yearapplied: {yearapplied}")
         print(f"accepted: {accepted}")
-        print(f"reapp_accepted_same_field: {reapp_accepted_same_field}")
-        print(f"reapp_accepted_diff_field: {reapp_accepted_diff_field}")
+
 
         return redirect(url_for('view_db'))
 
@@ -182,9 +202,36 @@ def view_users():
 @app.route('/view_db')
 @login_required
 def view_db():
-    students = Student.query.all()
-    return render_template('view_db.html', students=students)
+    tab = request.args.get('tab', 'All')
 
+    if tab == 'Healthcare':
+        query = """
+        SELECT a.year_applied, s.stu_name, sch.school_type, sch.school_name, a.program, a.accepted, s.stu_id, a.app_id
+        FROM application AS a
+        JOIN student AS s ON a.stu_id = s.stu_id
+        JOIN school AS sch ON a.school_id = sch.school_id
+        WHERE sch.school_type = 'healthcare' AND a.year_applied >= %s
+        """
+        applications = execute_query(query, (ten_years_ago,))
+    elif tab == 'Postgrad':
+        query = """
+        SELECT a.year_applied, s.stu_name, sch.school_type, sch.school_name, a.program, a.accepted, s.stu_id, a.app_id
+        FROM application AS a
+        JOIN student AS s ON a.stu_id = s.stu_id
+        JOIN school AS sch ON a.school_id = sch.school_id
+        WHERE sch.school_type = 'postgrad' AND a.year_applied >= %s
+        """
+        applications = execute_query(query, (ten_years_ago,))
+    else:  #'All'
+        query = """
+        SELECT a.year_applied, s.stu_name, sch.school_type, sch.school_name, a.program, a.accepted, s.stu_id, a.app_id
+        FROM application AS a
+        JOIN student AS s ON a.stu_id = s.stu_id
+        JOIN school AS sch ON a.school_id = sch.school_id
+        """
+        applications = execute_query(query)
+
+    return render_template('view_db.html', applications=applications, active_tab=tab)
 @app.route('/updateuser', methods=['GET', 'POST'])
 @login_required
 def updateuser():
@@ -279,71 +326,115 @@ def updatestudent(id):
 
 @app.route('/queries')
 def queries():
-    query_total_accepted = "SELECT COUNT(*) FROM APPLICATION WHERE accepted = 1"
-    query_total_applications = "SELECT COUNT(*) FROM APPLICATION"
-    total_accepted = execute_query(query_total_accepted)[0][0]
-    total_applications = execute_query(query_total_applications)[0][0]
+    #total accepted and total applications in the last 10 years
+    query_total_accepted = f"SELECT * FROM application WHERE accepted = 1 AND year_applied >= %s"
+    query_total_applications = f"SELECT * FROM application WHERE year_applied >= %s"
+    total_accepted = len(execute_query(query_total_accepted, (ten_years_ago,)))
+    total_applications = len(execute_query(query_total_applications, (ten_years_ago,)))
+
     total_acceptance_rate = round((total_accepted / total_applications) * 100, 2) if total_applications > 0 else 0.0
 
-    query_school_types = "SELECT DISTINCT school_type FROM SCHOOL"
+    #total accepted and total applications in the last 10 years by school type
+    query_healthcare_accepted = f"SELECT * FROM application AS a JOIN school AS s ON a.school_id = s.school_id WHERE a.accepted = 1 AND a.year_applied >= %s AND s.school_type = 'healthcare'"
+    query_healthcare_applications = f"SELECT * FROM application AS a JOIN school AS s ON a.school_id = s.school_id WHERE a.year_applied >= %s AND s.school_type = 'healthcare'"
+    healthcare_accepted = len(execute_query(query_healthcare_accepted, (ten_years_ago,)))
+    healthcare_applications = len(execute_query(query_healthcare_applications, (ten_years_ago,)))
+    healthcare_acceptance_rate = round((healthcare_accepted / healthcare_applications) * 100, 2) if healthcare_applications > 0 else 0.0
+
+    query_postgrad_accepted = f"SELECT * FROM application AS a JOIN school AS s ON a.school_id = s.school_id WHERE a.accepted = 1 AND a.year_applied >= %s AND s.school_type = 'postgrad'"
+    query_postgrad_applications = f"SELECT * FROM application AS a JOIN school AS s ON a.school_id = s.school_id WHERE a.year_applied >= %s AND s.school_type = 'postgrad'"
+    postgrad_accepted = len(execute_query(query_postgrad_accepted, (ten_years_ago,)))
+    postgrad_applications = len(execute_query(query_postgrad_applications, (ten_years_ago,)))
+    postgrad_acceptance_rate = round((postgrad_accepted / postgrad_applications) * 100, 2) if postgrad_applications > 0 else 0.0
+
+
+
+    #complete drop down menus
+    query_school_types = "SELECT DISTINCT school_type FROM school"
     school_types = [row[0] for row in execute_query(query_school_types)]
 
-    query_application_types = "SELECT DISTINCT program FROM APPLICATION"
+    query_application_types = "SELECT DISTINCT program FROM application"
     application_types = [row[0] for row in execute_query(query_application_types)]
 
-    query_school_names = "SELECT DISTINCT school_name FROM SCHOOL"
+    query_school_names = "SELECT DISTINCT school_name FROM school"
     school_names = [row[0] for row in execute_query(query_school_names)]
-    return render_template('queries.html',  total_acceptance_rate=total_acceptance_rate, school_types=school_types,application_types=application_types, school_names=school_names)
+
+    return render_template('queries.html',
+                           total_acceptance_rate=total_acceptance_rate,
+                           healthcare_acceptance_rate=healthcare_acceptance_rate,
+                           postgrad_acceptance_rate=postgrad_acceptance_rate,
+                           total_accepted=total_accepted,
+                           total_applications=total_applications,
+                           healthcare_accepted=healthcare_accepted,
+                           healthcare_applications=healthcare_applications,
+                           postgrad_accepted=postgrad_accepted,
+                           postgrad_applications=postgrad_applications,
+                           school_types=school_types,
+                           application_types=application_types,
+                           school_names=school_names)
 
 @app.route('/query_acceptance_by_year', methods=['POST'])
 def query_acceptance_by_year():
     start_year = request.form['start_year']
     end_year = request.form['end_year']
-    query_total = "SELECT COUNT(*) FROM APPLICATION WHERE year_applied BETWEEN %s AND %s"
-    query_accepted = "SELECT COUNT(*) FROM APPLICATION WHERE year_applied BETWEEN %s AND %s AND accepted = 1"
-    total = execute_query(query_total, (start_year, end_year))[0][0]
-    accepted = execute_query(query_accepted, (start_year, end_year))[0][0]
-    acceptance_rate = round((accepted / total) * 100, 2)if total > 0 else 0.0
-    return render_template('queries.html', acceptance_rate_by_year=acceptance_rate)
-
-@app.route('/query_acceptance_by_school_type', methods=['POST'])
-def query_acceptance_by_school_type():
-    school_type = request.form['school_type']
-    query_total = "SELECT COUNT(*) FROM APPLICATION JOIN SCHOOL ON APPLICATION.school_id = SCHOOL.school_id WHERE SCHOOL.school_type = %s"
-    query_accepted = "SELECT COUNT(*) FROM APPLICATION JOIN SCHOOL ON APPLICATION.school_id = SCHOOL.school_id WHERE SCHOOL.school_type = %s AND APPLICATION.accepted = 1"
-    total = execute_query(query_total, (school_type,))[0][0]
-    accepted = execute_query(query_accepted, (school_type,))[0][0]
-    acceptance_rate = round((accepted / total) * 100, 2) if total > 0 else 0.0
-    return render_template('queries.html', acceptance_rate_by_school_type=acceptance_rate)
-
-@app.route('/query_acceptance_by_application_type', methods=['POST'])
-def query_acceptance_by_application_type():
-    application_type = request.form['application_type']
-    query_total = "SELECT COUNT(*) FROM APPLICATION WHERE program = %s"
-    query_accepted = "SELECT COUNT(*) FROM APPLICATION WHERE program = %s AND accepted = 1"
-    total = execute_query(query_total, (application_type,))[0][0]
-    accepted = execute_query(query_accepted, (application_type,))[0][0]
-    acceptance_rate = round((accepted / total) * 100, 2) if total > 0 else 0.0
-    return render_template('queries.html', acceptance_rate_by_application_type=acceptance_rate)
-
-@app.route('/query_success_rate_reapplicants', methods=['POST'])
-def query_success_rate_reapplicants():
-    query_total_students = "SELECT COUNT(DISTINCT stu_id) FROM APPLICATION"
-    query_reapplicants = "SELECT COUNT(*) FROM (SELECT stu_id FROM APPLICATION GROUP BY stu_id HAVING COUNT(*) > 1) AS reapplicants"
-    total_students = execute_query(query_total_students)[0][0]
-    reapplicants = execute_query(query_reapplicants)[0][0]
-    success_rate_reapplicants = round((reapplicants / total_students) * 100, 2) if total_students > 0 else 0.0
-    return render_template('queries.html', success_rate_reapplicants=success_rate_reapplicants)
+    query_total = "SELECT * FROM application WHERE year_applied BETWEEN %s AND %s"
+    query_accepted = "SELECT * FROM application WHERE year_applied BETWEEN %s AND %s AND accepted = 1"
+    total_result = len(execute_query(query_total, (start_year, end_year)))
+    accepted_result = len(execute_query(query_accepted, (start_year, end_year)))
+    acceptance_rate_by_year = round((accepted_result / total_result) * 100, 2) if total_result > 0 else 0.0
+    return render_template('queries.html', acceptance_rate_by_year=acceptance_rate_by_year,
+                           total_result=total_result,
+                           accepted_result=accepted_result)
 
 @app.route('/query_acceptance_by_school_name', methods=['POST'])
 def query_acceptance_by_school_name():
     school_name = request.form['school_name']
-    query_total = "SELECT COUNT(*) FROM APPLICATION JOIN SCHOOL ON APPLICATION.school_id = SCHOOL.school_id WHERE SCHOOL.school_name = %s"
-    query_accepted = "SELECT COUNT(*) FROM APPLICATION JOIN SCHOOL ON APPLICATION.school_id = SCHOOL.school_id WHERE SCHOOL.school_name = %s AND APPLICATION.accepted = 1"
-    total = execute_query(query_total, (school_name,))[0][0]
-    accepted = execute_query(query_accepted, (school_name,))[0][0]
-    acceptance_rate = round((accepted / total) * 100, 2) if total > 0 else 0.0
-    return render_template('queries.html', acceptance_rate_by_school_name=acceptance_rate)
+    query_total_name = "SELECT * FROM APPLICATION JOIN SCHOOL ON APPLICATION.school_id = SCHOOL.school_id WHERE SCHOOL.school_name = %s AND year_applied >= %s"
+    query_accepted_name = "SELECT * FROM APPLICATION JOIN SCHOOL ON APPLICATION.school_id = SCHOOL.school_id WHERE SCHOOL.school_name = %s AND APPLICATION.accepted = 1 AND year_applied >= %s"
+    total_result_name = len(execute_query(query_total_name, (school_name, ten_years_ago,)))
+    accepted_result_name = len(execute_query(query_accepted_name, (school_name, ten_years_ago,)))
+    acceptance_rate_by_school_name = round((accepted_result_name / total_result_name) * 100, 2)if total_result_name > 0 else 0.0
+    return render_template('queries.html', acceptance_rate_by_school_name=acceptance_rate_by_school_name,
+                           total_result_name=total_result_name,
+                           accepted_result_name=accepted_result_name)
+
+@app.route('/query_acceptance_by_program', methods=['POST'])
+def query_acceptance_by_program():
+    program = request.form['program']
+    query_total = "SELECT * FROM APPLICATION WHERE program = %s AND year_applied >= %s"
+    query_accepted = "SELECT * FROM APPLICATION WHERE program = %s AND accepted = 1 AND year_applied >= %s"
+    total_program = len(execute_query(query_total, (program, ten_years_ago,)))
+    accepted_program = len(execute_query(query_accepted, (program, ten_years_ago,)))
+    acceptance_rate_by_program = round((accepted_program / total_program) * 100, 2)if total_program > 0 else 0.0
+    return render_template('queries.html', acceptance_rate_by_program=acceptance_rate_by_program)
+
+@app.route('/query_success_rate_reapplicants', methods=['POST'])
+def query_success_rate_reapplicants():
+    query_total_students = "SELECT DISTINCT stu_id FROM APPLICATION WHERE year_applied >= %s"
+    query_reapplicants = """
+        SELECT * FROM (
+            SELECT a.stu_id, a.year_applied, s.school_type
+            FROM APPLICATION a
+            JOIN SCHOOL s ON a.school_id = s.school_id
+            GROUP BY a.stu_id 
+            HAVING COUNT(*) > 1
+        ) AS reapplicants
+        WHERE year_applied >= %s
+        AND NOT EXISTS (
+            SELECT 1 FROM APPLICATION a2
+            JOIN SCHOOL s2 ON a2.school_id = s2.school_id
+            WHERE a2.stu_id = reapplicants.stu_id
+            AND s2.school_type = reapplicants.school_type
+            AND a2.app_id <> (
+                SELECT MIN(a3.app_id) FROM APPLICATION a3 
+                WHERE a3.stu_id = reapplicants.stu_id
+            )
+        )
+    """
+    total_students = len(execute_query(query_total_students, (ten_years_ago,)))
+    reapplicants = len(execute_query(query_reapplicants, (ten_years_ago,)))
+    success_rate_reapplicants = round((reapplicants / total_students) * 100, 2) if total_students > 0 else 0.0
+    return render_template('queries.html', success_rate_reapplicants=success_rate_reapplicants)
 
 @app.route('/advanced_search', methods=['POST'])
 @login_required
