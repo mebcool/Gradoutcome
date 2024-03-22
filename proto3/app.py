@@ -41,6 +41,19 @@ def execute_query(query, params=None):
             cursor.close()
             cnx.close()
 
+def execute_insert(insert, params):
+    try:
+        cnx = mysql.connector.connect(**db_config)
+        cursor = cnx.cursor()
+        cursor.execute(insert, params)
+        cnx.commit()
+    except mysql.connector.Error as err:
+        print("Error: ", err)
+    finally:
+        if 'cnx' in locals() and cnx.is_connected():
+            cursor.close()
+            cnx.close()
+
 class Student(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(50), nullable=False)
@@ -106,18 +119,6 @@ def createuser():
 
     return render_template('createuser.html', error=error)
 
-def execute_insert(insert, params):
-    try:
-        cnx = mysql.connector.connect(**db_config)
-        cursor = cnx.cursor()
-        cursor.execute(insert, params)
-        cnx.commit()
-    except mysql.connector.Error as err:
-        print("Error: ", err)
-    finally:
-        if 'cnx' in locals() and cnx.is_connected():
-            cursor.close()
-            cnx.close()
 @app.route('/createstudent', methods=['GET', 'POST'])
 @login_required
 def createstudent():
