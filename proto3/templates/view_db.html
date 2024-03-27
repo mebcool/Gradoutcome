@@ -1,45 +1,50 @@
 {% extends "base.html" %}
 {% block title %}View All Users{% endblock %}
 {% block body %}
-    <h1>All students</h1>
-    <table>
-        <thead>
-            <tr>
-                <th>Year Applied</th>
-                <th>Student Name</th>
-                <th>School Type</th>
-                <th>School Name</th>
-                <th>Accepted?</th>
-                <th>Reapplied and Accepted (Same Field)</th>
-                <th>Reapplied and Accepted (Diff Field)</th>
-                <th>Actions</th>
-            </tr>
-        </thead>
-<tbody>
-    {% for student in students %}
-        <tr>
-            <td>{{ student.application.yearapplied }}</td>
-            <td>{{ student.name }}</td>
-            <td>{{ student.school.typeof if student.school else 'N/A' }}</td>
-            <td>{{ student.school.name if student.school else 'N/A' }}</td>
-            <td>{{ student.application.accepted }}</td>
-            <td>{{ student.application.reapp_accepted_same_field }}</td>
-            <td>{{ student.application.reapp_accepted_diff_field }}</td>
-            <td>
-                <a href="{{ url_for('updatestudent', id=student.id) }}">Update</a>
-                <a href="{{ url_for('student_profile', id=student.id) }}">Profile</a>
-                <button onclick="deleteStudent({{ student.id }})">Delete</button>
-            </td>
-        </tr>
-    {% endfor %}
-</tbody>
-    </table>
+<div class="tabs">
+    <a href="/view_db?tab=All" class="tablink {% if active_tab == 'All' %}active{% endif %}">All Applications</a><br>
+    <a href="/view_db?tab=Healthcare" class="tablink {% if active_tab == 'Healthcare' %}active{% endif %}">Healthcare (Last 10 Years)</a><br>
+    <a href="/view_db?tab=Postgrad" class="tablink {% if active_tab == 'Postgrad' %}active{% endif %}">Postgrad (Last 10 Years)</a>
+</div>
 
-    <script>
-        function deleteStudent(studentId) {
-            if (confirm("Are you sure you want to delete this student record?")) {
-                window.location.href = "/deletestudent/" + studentId;
-            }
+    <div id="ApplicationsTable" class="tabcontent" style="display: block;">
+        <table>
+            <thead>
+                <tr>
+                    <th>Year Applied</th>
+                    <th>Student Name</th>
+                    <th>School Type</th>
+                    <th>School Name</th>
+                    <th>Program/Degree Path</th>
+                    <th>Accepted?</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+            {% for application in applications %}
+            <tr>
+                <td>{{ application[0] }}</td> <!-- year_applied -->
+                <td>{{ application[1] }}</td> <!-- stu_name -->
+                <td>{{ application[2] }}</td> <!-- school_type -->
+                <td>{{ application[3] }}</td> <!-- school_name -->
+                <td>{{ application[4] }}</td> <!-- program -->
+                <td>{{ 'Yes' if application[5] else 'No' }}</td> <!-- accepted -->
+                <td>
+                    <a href="{{ url_for('updatestudent', stu_id=application[6]) }}" class="btn">Update</a>
+                    <a href="{{ url_for('student_profile', stu_id=application[6]) }}" class="btn">Profile</a>
+                    <button onclick="deleteApplication({{ application[7] }})" class="btn">Delete</button>
+                </td>
+            </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+
+    </div>
+<script>
+    function deleteApplication(appId) {
+        if (confirm("Are you sure you want to delete this application and all associated data?")) {
+            window.location.href = `/deleteapplication/${appId}`;
         }
-    </script>
+    }
+</script>
 {% endblock %}
