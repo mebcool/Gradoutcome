@@ -1,0 +1,113 @@
+<!--BEGIN CODE REVIEW-->
+{% extends "base.html" %}
+{% block title %}Queries{% endblock %}
+{% block body %}
+    <h2>Total Acceptance Rate (last 10 years)</h2>
+    <p>Total Acceptance Rate: {{ total_accepted }} Accepted / {{ total_applications }} Total = {{ total_acceptance_rate }}%</p>
+
+    <h2>Total Postgrad Acceptance Rate (last 10 years)</h2>
+    <p>Total Postgrad Acceptance Rate: {{ postgrad_accepted }} Accepted / {{ postgrad_applications }} Total = {{ postgrad_acceptance_rate }}%</p>
+
+    <h2>Total Healthcare Acceptance Rate (last 10 years)</h2>
+    <p>Total Healthcare Acceptance Rate: {{ healthcare_accepted }} Accepted /  {{ healthcare_applications }} Total = {{ healthcare_acceptance_rate }}%</p>
+
+    <h1>Acceptance Rate by Year Range</h1>
+    <form action="/query_acceptance_by_year" method="post">
+        <label for="start_year">Start Year:</label>
+        <input type="text" id="start_year" name="start_year"><br><br>
+        <label for="end_year">End Year:</label>
+        <input type="text" id="end_year" name="end_year"><br><br>
+        <input type="submit" value="Submit">
+    </form>
+    <p>Acceptance Rate in the specified year range: {{ accepted_result }} accepted / {{ total_result }} total = {{ acceptance_rate_by_year }}%</p>
+
+    <h1>Acceptance Rate by School Name (last 10 years)</h1>
+    <form action="/query_acceptance_by_school_name" method="post">
+    <label for="school_name">School name:</label>
+    <select id="school_name" name="school_name">
+        {% for name in school_names %}
+            <option value="{{ name }}">{{ name }}</option>
+        {% endfor %}
+    </select><br><br>
+    <input type="submit" value="Submit">
+</form>
+<p>Acceptance Rate for the specified school name: {{ accepted_result_name }} accepted / {{ total_result_name }} total = {{ acceptance_rate_by_school_name }}%</p>
+
+ <h1>Acceptance Rate by Program (last 10 years)</h1>
+<form action="/query_acceptance_by_program" method="post">
+    <label for="program">Program:</label>
+    <select id="program" name="program">
+        {% for type in application_types %}
+            <option value="{{ type }}">{{ type }}</option>
+        {% endfor %}
+    </select><br><br>
+    <input type="submit" value="Submit">
+</form>
+<p>Acceptance Rate for specified program: {{ accepted_program }} accepted / {{ total_program }} total = {{ acceptance_rate_by_program }}%</p>
+
+    <h1>Success Rate for Reapplicants (last 10 years)</h1>
+    <form action="/query_success_rate_reapplicants" method="post">
+        <input type="submit" value="Submit">
+    </form>
+    <p>Success Rate for students who have applied more than once: {{ success_rate_reapplicants }}%</p>
+
+
+    <!-- Advanced search -->
+    <h2>Advanced Search</h2>
+    <form method="post" action="/advanced_search">
+        <label for="name">Student Name:</label>
+        <input type="text" id="name" name="name"><br>
+
+        <label for="program">Program:</label>
+        <select id="program" name="program">
+            <option value="">-- Select Program --</option>
+            {% for type in application_types %}
+                <option value="{{ type }}">{{ type }}</option>
+            {% endfor %}
+        </select><br><br>
+
+        <label for="school_type">School Type:</label>
+        <select id="school_type" name="school_type">
+            <option value="">-- Select School Type --</option>
+            {% for type in school_types %}
+                <option value="{{ type }}">{{ type }}</option>
+            {% endfor %}
+        </select><br><br>
+
+        <button type="submit">Search</button>
+    </form>
+
+
+    {% if search_results %}
+        <table>
+            <thead>
+                <tr>
+                    <th>Year Applied</th>
+                    <th>Student Name</th>
+                    <th>School Type</th>
+                    <th>School Name</th>
+                    <th>Program/Degree Path</th>
+                    <th>Accepted?</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+            {% for application in search_results %}
+            <tr>
+                <td>{{ application[0] }}</td> <!-- year_applied -->
+                <td>{{ application[1] }}</td> <!-- stu_name -->
+                <td>{{ application[2] }}</td> <!-- school_type -->
+                <td>{{ application[3] }}</td> <!-- school_name -->
+                <td>{{ application[4] }}</td> <!-- program -->
+                <td>{{ 'Yes' if application[5] else 'No' }}</td> <!-- accepted -->
+                <td>
+                    <a href="{{ url_for('updatestudent', stu_id=application[6]) }}" class="btn">Update</a>
+                    <a href="{{ url_for('student_profile', stu_id=application[6]) }}" class="btn">Profile</a>
+                    <button onclick="deleteApplication({{ application[7] }})" class="btn">Delete</button>
+                </td>
+            </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    {% endif %}
+{% endblock %}
