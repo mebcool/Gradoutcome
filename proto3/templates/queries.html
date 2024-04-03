@@ -1,10 +1,15 @@
+<!--BEGIN CODE REVIEW-->
 {% extends "base.html" %}
 {% block title %}Queries{% endblock %}
 {% block body %}
-    <h1>Database Queries</h1>
+    <h2>Total Acceptance Rate (last 10 years)</h2>
+    <p>Total Acceptance Rate: {{ total_accepted }} Accepted / {{ total_applications }} Total = {{ total_acceptance_rate }}%</p>
 
-     <h1>Total Acceptance Rate</h1>
-    <p>Total Acceptance Rate: {{ total_acceptance_rate }}%</p>
+    <h2>Total Postgrad Acceptance Rate (last 10 years)</h2>
+    <p>Total Postgrad Acceptance Rate: {{ postgrad_accepted }} Accepted / {{ postgrad_applications }} Total = {{ postgrad_acceptance_rate }}%</p>
+
+    <h2>Total Healthcare Acceptance Rate (last 10 years)</h2>
+    <p>Total Healthcare Acceptance Rate: {{ healthcare_accepted }} Accepted /  {{ healthcare_applications }} Total = {{ healthcare_acceptance_rate }}%</p>
 
     <h1>Acceptance Rate by Year Range</h1>
     <form action="/query_acceptance_by_year" method="post">
@@ -14,21 +19,10 @@
         <input type="text" id="end_year" name="end_year"><br><br>
         <input type="submit" value="Submit">
     </form>
-    <p>Acceptance Rate in the specified year range: {{ acceptance_rate_by_year }}%</p>
 
-    <h1>Acceptance Rate by School Type</h1>
-    <form action="/query_acceptance_by_school_type" method="post">
-    <label for="school_type">School Type:</label>
-    <select id="school_type" name="school_type">
-        {% for type in school_types %}
-            <option value="{{ type }}">{{ type }}</option>
-        {% endfor %}
-    </select><br><br>
-    <input type="submit" value="Submit">
-</form>
-<p>Acceptance Rate for the specified school type: {{ acceptance_rate_by_school_type }}%</p>
+    <p>Acceptance Rate in the specified year({{ start_year }} - {{ end_year }}) range: {{ accepted_result }} accepted / {{ total_result }} total = {{ acceptance_rate_by_year }}%</p>
 
-    <h1>Acceptance Rate by School Name</h1>
+    <h1>Acceptance Rate by School Name (last 10 years)</h1>
     <form action="/query_acceptance_by_school_name" method="post">
     <label for="school_name">School name:</label>
     <select id="school_name" name="school_name">
@@ -38,113 +32,83 @@
     </select><br><br>
     <input type="submit" value="Submit">
 </form>
-<p>Acceptance Rate for the specified school type: {{ acceptance_rate_by_school_name }}%</p>
+<p>Acceptance Rate for the specified school name({{ school_name }}): {{ accepted_result_name }} accepted / {{ total_result_name }} total = {{ acceptance_rate_by_school_name }}%</p>
 
- <h1>Acceptance Rate by Application Type</h1>
-<form action="/query_acceptance_by_application_type" method="post">
-    <label for="application_type">Application Type:</label>
-    <select id="application_type" name="application_type">
+ <h1>Acceptance Rate by Program (last 10 years)</h1>
+<form action="/query_acceptance_by_program" method="post">
+    <label for="program">Program:</label>
+    <select id="program" name="program">
         {% for type in application_types %}
             <option value="{{ type }}">{{ type }}</option>
         {% endfor %}
     </select><br><br>
     <input type="submit" value="Submit">
 </form>
-<p>Acceptance Rate for the specified application type: {{ acceptance_rate_by_application_type }}%</p>
+<p>Acceptance Rate for specified program({{ program }}): {{ accepted_program }} accepted / {{ total_program }} total = {{ acceptance_rate_by_program }}%</p>
 
-    <h1>Success Rate for Reapplicants</h1>
+    <h1>Success Rate for Reapplicants (last 10 years)</h1>
     <form action="/query_success_rate_reapplicants" method="post">
         <input type="submit" value="Submit">
     </form>
     <p>Success Rate for students who have applied more than once: {{ success_rate_reapplicants }}%</p>
 
-    <!--advanced search-->
+
+    <!-- Advanced search -->
     <h2>Advanced Search</h2>
-    <form method="post" action="{{ url_for('advanced_search') }}">
+    <form method="post" action="/advanced_search">
         <label for="name">Student Name:</label>
         <input type="text" id="name" name="name"><br>
 
-        <label for="school_name">School Name:</label>
-        <input type="text" id="school_name" name="school_name"><br>
+        <label for="program_search">Program:</label>
+        <select id="program_search" name="program_search">
+            <option value="">-- Select Program --</option>
+            {% for type in application_types %}
+                <option value="{{ type }}">{{ type }}</option>
+            {% endfor %}
+        </select><br>
 
         <label for="school_type">School Type:</label>
-        <input type="text" id="school_type" name="school_type"><br>
-
-        <label for="start_year">Start Year:</label>
-        <input type="number" id="start_year" name="start_year">
-        <label for="end_year">End Year:</label>
-        <input type="number" id="end_year" name="end_year">
-        <button type="submit">Submit</button><br>
-
-        <label for="accepted">Accepted?</label>
-        <select id="accepted" name="accepted">
-            <option value="1">Yes</option>
-            <option value="0">No</option>
+        <select id="school_type" name="school_type">
+            <option value="">-- Select School Type --</option>
+            {% for type in school_types %}
+                <option value="{{ type }}">{{ type }}</option>
+            {% endfor %}
         </select><br>
-
-        <label for="reapp_accepted_same_field">Reapplied and Accepted (Same Field)</label>
-        <select id="reapp_accepted_same_field" name="reapp_accepted_same_field">
-            <option value="1">Yes</option>
-            <option value="0">No</option>
-        </select><br>
-
-        <label for="reapp_accepted_diff_field">Reapplied and Accepted (Diff Field)</label>
-        <select id="reapp_accepted_diff_field" name="reapp_accepted_diff_field">
-            <option value="1">Yes</option>
-            <option value="0">No</option>
-        </select><br>
-
-        <label for="degree">Degree:</label>
-        <input type="text" id="degree" name="degree"><br>
-
-        <label for="graduation_year">Graduation Year:</label>
-        <input type="number" id="graduation_year" name="graduation_year"><br>
-
 
         <button type="submit">Search</button>
     </form>
 
 
     {% if search_results %}
-        <h2>Search Results</h2>
+    <h1>Showing Search results for {{ params }}</h1>
         <table>
             <thead>
                 <tr>
                     <th>Year Applied</th>
                     <th>Student Name</th>
-                    <th>Phone</th>
-                    <th>Email</th>
                     <th>School Type</th>
                     <th>School Name</th>
+                    <th>Program/Degree Path</th>
                     <th>Accepted?</th>
-                    <th>Reapplied and Accepted (Same Field)</th>
-                    <th>Reapplied and Accepted (Diff Field)</th>
-                    <th>Degree</th>
-                    <th>Graduation Year</th>
                     <th>Actions</th>
                 </tr>
             </thead>
             <tbody>
-                {% for student in search_results %}
-                    <tr>
-                        <td>{{ student.application.yearapplied }}</td>
-                        <td>{{ student.name }}</td>
-                        <td>{{ student.phone }}</td>
-                        <td>{{ student.email }}</td>
-                        <td>{{ student.school.typeof if student.school else 'N/A' }}</td>
-                        <td>{{ student.school.name if student.school else 'N/A' }}</td>
-                        <td>{{ student.application.accepted }}</td>
-                        <td>{{ student.application.reapp_accepted_same_field }}</td>
-                        <td>{{ student.application.reapp_accepted_diff_field }}</td>
-                        <td>{{ student.degree }}</td>
-                        <td>{{ student.graduation_year }}</td>
-                        <td>
-                            <a href="{{ url_for('updatestudent', id=student.id) }}">Update</a>
-                            <a href="{{ url_for('student_profile', id=student.id) }}">Profile</a>
-                            <button onclick="deleteStudent({{ student.id }})">Delete</button>
-                        </td>
-                    </tr>
-                {% endfor %}
+            {% for application in search_results %}
+            <tr>
+                <td>{{ application[0] }}</td> <!-- year_applied -->
+                <td>{{ application[1] }}</td> <!-- stu_name -->
+                <td>{{ application[2] }}</td> <!-- school_type -->
+                <td>{{ application[3] }}</td> <!-- school_name -->
+                <td>{{ application[4] }}</td> <!-- program -->
+                <td>{{ 'Yes' if application[5] else 'No' }}</td> <!-- accepted -->
+                <td>
+                    <a href="{{ url_for('updatestudent', stu_id=application[6]) }}" class="btn">Update</a>
+                    <a href="{{ url_for('student_profile', stu_id=application[6]) }}" class="btn">Profile</a>
+                    <button onclick="deleteApplication({{ application[7] }})" class="btn">Delete</button>
+                </td>
+            </tr>
+            {% endfor %}
             </tbody>
         </table>
     {% endif %}
