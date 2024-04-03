@@ -28,7 +28,8 @@
                 <td>{{ application[2] }}</td> <!-- school_type -->
                 <td>{{ application[3] }}</td> <!-- school_name -->
                 <td>{{ application[4] }}</td> <!-- program -->
-                <td>{{ 'Yes' if application[5] else 'No' }}</td> <!-- accepted -->
+                <td>{% if application[5] == 1 %}Yes{% elif application[5] == 0 %}No{% else %}NULL{% endif %}</td>
+               <!-- <td>{{ 'Yes' if application[5] else 'No' }}</td>  -->
                 <td>
                     <a href="{{ url_for('updatestudent', stu_id=application[6]) }}" class="btn">Update</a>
                     <a href="{{ url_for('student_profile', stu_id=application[6]) }}" class="btn">Profile</a>
