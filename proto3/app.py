@@ -6,6 +6,7 @@ from flask import render_template, redirect, url_for
 from sqlalchemy import func
 import mysql.connector
 from mysql.connector import Error
+import datetime
 
 app = Flask(__name__, static_url_path='/static')
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///database.sqlite'
@@ -13,10 +14,9 @@ app.config['SECRET_KEY'] = 'theSecretKey'
 db = SQLAlchemy(app)
 login_manager = LoginManager(app)
 login_manager.init_app(app)
-
 today = datetime.date.today()
 year = today.year
-ten_years_ago = year - 10
+ten_years_ago = year - 11
 
 db_config = {
     'user': 'meddy',
@@ -24,6 +24,7 @@ db_config = {
     'host': 'radyweb.wsc.western.edu',
     'database': 'post_grad_outcome_bio'
 }
+
 def execute_query(query, params=None):
     try:
         cnx = mysql.connector.connect(**db_config)
@@ -54,6 +55,7 @@ def execute_insert(insert, params):
             cursor.close()
             cnx.close()
 
+##code below is outdated, back when the DB was in flask and SQL alchemy, not MySQL...
 class Student(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(50), nullable=False)
@@ -90,6 +92,7 @@ class User(UserMixin, db.Model): # for authentication, only authenticated users 
     id = db.Column(db.Integer, primary_key=True)
     username = db.Column(db.String(20), unique=True, nullable=False)
     password = db.Column(db.String(60), nullable=False)
+
 
 @login_manager.user_loader
 def load_user(uid):
@@ -200,6 +203,7 @@ def view_users():
     users = User.query.all()
     return render_template('view_users.html', users=users)
 
+
 @app.route('/view_db')
 @login_required
 def view_db():
@@ -233,6 +237,7 @@ def view_db():
         applications = execute_query(query)
 
     return render_template('view_db.html', applications=applications, active_tab=tab)
+
 @app.route('/updateuser', methods=['GET', 'POST'])
 @login_required
 def updateuser():
@@ -250,20 +255,15 @@ def updateuser():
 
     return render_template('updateuser.html', error=error)
 
-@app.route('/deletestudent/<int:id>')
+
+@app.route('/deleteapplication/<int:app_id>')
 @login_required
-def deletestudent(id):
-    student = Student.query.get(id)
+def deleteapplication(app_id):
+    delete_app_query = "DELETE FROM application WHERE app_id = %s"
+    execute_query(delete_app_query, (app_id,))
 
-    # Delete associated applications first
-    for application in student.application:
-        db.session.delete(application)
-
-    # Now delete the student
-    db.session.delete(student)
-    db.session.commit()
-
-    return redirect('/view_db')
+    flash('Application deleted successfully.', 'success')
+    return redirect('view_db.html')
 
 @app.route('/add_comment/<int:id>', methods=['POST'])
 @login_required
@@ -283,51 +283,78 @@ def add_comment(id):
     return redirect(url_for('student_profile', id=id))
 
 
-@app.route('/student_profile/<int:id>')
+@app.route('/student_profile/<int:stu_id>')
 @login_required
-def student_profile(id):
-    student = Student.query.get(id)
+def student_profile(stu_id):
+    student_query = """
+    SELECT s.stu_id, s.stu_name, s.stu_email, s.stu_phone, sch.school_name, sch.school_type, a.year_applied, a.program, a.accepted
+    FROM student s
+    LEFT JOIN application a ON s.stu_id = a.stu_id
+    LEFT JOIN school sch ON a.school_id = sch.school_id
+    WHERE s.stu_id = %s
+    """
+    student_data = execute_query(student_query, (stu_id,))
+    if student_data:
+        student = student_data[0]
+    else:
+        flash('Student not found.', 'error')
+        return redirect(url_for('view_db'))
 
-    if not student:
-        # Handle case when student is not found
-        flash("Student not found", "error")
-        return redirect('/view_db')
+    comments_query = "SELECT comments FROM comments WHERE stu_id = %s"
+    comments = execute_query(comments_query, (stu_id,))
 
-    return render_template('student_profile.html', student=student)
+    return render_template('student_profile.html', student=student, comments=comments)
 
 
-@app.route('/updatestudent/<int:id>', methods=['GET', 'POST'])
+@app.route('/updatestudent/<int:stu_id>', methods=['GET', 'POST'])
 @login_required
-def updatestudent(id):
-    student = Student.query.get(id)
-
+def updatestudent(stu_id):
     if request.method == 'POST':
-        student.name = request.form['name']
-        student.phone = request.form['phone']
-        student.email = request.form['email']
+        # Fetch the form data
+        stu_name = request.form['name']
+        stu_email = request.form['email']
+        stu_phone = request.form['phone']
+        school_name = request.form['school_name']
+        school_type = request.form['school_type']
 
-        # Update School Information
-        if student.school:
-            student.school.name = request.form['school_name']
-            student.school.typeof = request.form['school_type']
+        # Update student info
+        update_student_query = """
+        UPDATE student SET stu_name = %s, stu_email = %s, stu_phone = %s WHERE stu_id = %s
+        """
+        execute_query(update_student_query, (stu_name, stu_email, stu_phone, stu_id))
 
-        # Update Application Information
-        if student.application:
-            application = student.application[0]
-            application.yearapplied = request.form['yearapplied']
-            application.accepted = 'accepted' in request.form
-            application.reapp_accepted_same_field = 'reapp_accepted_same_field' in request.form
-            application.reapp_accepted_diff_field = 'reapp_accepted_diff_field' in request.form
+        # Assuming school_id is directly related and unique for each student, update school info
+        update_school_query = """
+        UPDATE school SET school_name = %s, school_type = %s WHERE school_id = (
+            SELECT school_id FROM application WHERE stu_id = %s LIMIT 1
+        )
+        """
+        execute_query(update_school_query, (school_name, school_type, stu_id))
 
-        db.session.commit()
+        flash('Student and school information updated successfully.', 'success')
+        return redirect('view_db.html')
 
-        return redirect('/view_db')
+    student_query = """
+    SELECT s.stu_name, s.stu_email, s.stu_phone, sch.school_name, sch.school_type
+    FROM student s
+    JOIN application a ON s.stu_id = a.stu_id
+    JOIN school sch ON a.school_id = sch.school_id
+    WHERE s.stu_id = %s
+    """
+    student_data = execute_query(student_query, (stu_id,))
+    if student_data:
+        student = student_data[0]
+    else:
+        flash('Student not found.', 'error')
+        return redirect('view_db.html')
 
     return render_template('updatestudent.html', student=student)
 
 @app.route('/queries')
 def queries():
     #total accepted and total applications in the last 10 years
+    #if student reapplies in the same field, count as success and not as a total
+    #unassigned
     query_total_accepted = f"SELECT * FROM application WHERE accepted = 1 AND year_applied >= %s"
     query_total_applications = f"SELECT * FROM application WHERE year_applied >= %s"
     total_accepted = len(execute_query(query_total_accepted, (ten_years_ago,)))
@@ -385,7 +412,9 @@ def query_acceptance_by_year():
     acceptance_rate_by_year = round((accepted_result / total_result) * 100, 2) if total_result > 0 else 0.0
     return render_template('queries.html', acceptance_rate_by_year=acceptance_rate_by_year,
                            total_result=total_result,
-                           accepted_result=accepted_result)
+                           accepted_result=accepted_result,
+                           start_year=start_year,
+                           end_year=end_year)
 
 @app.route('/query_acceptance_by_school_name', methods=['POST'])
 def query_acceptance_by_school_name():
@@ -397,7 +426,8 @@ def query_acceptance_by_school_name():
     acceptance_rate_by_school_name = round((accepted_result_name / total_result_name) * 100, 2)if total_result_name > 0 else 0.0
     return render_template('queries.html', acceptance_rate_by_school_name=acceptance_rate_by_school_name,
                            total_result_name=total_result_name,
-                           accepted_result_name=accepted_result_name)
+                           accepted_result_name=accepted_result_name,
+                           school_name=school_name)
 
 @app.route('/query_acceptance_by_program', methods=['POST'])
 def query_acceptance_by_program():
@@ -407,9 +437,13 @@ def query_acceptance_by_program():
     total_program = len(execute_query(query_total, (program, ten_years_ago,)))
     accepted_program = len(execute_query(query_accepted, (program, ten_years_ago,)))
     acceptance_rate_by_program = round((accepted_program / total_program) * 100, 2)if total_program > 0 else 0.0
-    return render_template('queries.html', acceptance_rate_by_program=acceptance_rate_by_program)
+    return render_template('queries.html', acceptance_rate_by_program=acceptance_rate_by_program,
+                           total_program=total_program,
+                           accepted_program=accepted_program,
+                           program=program)
 
 @app.route('/query_success_rate_reapplicants', methods=['POST'])
+#todo another applicant in the same program
 def query_success_rate_reapplicants():
     query_total_students = "SELECT DISTINCT stu_id FROM APPLICATION WHERE year_applied >= %s"
     query_reapplicants = """
@@ -437,65 +471,41 @@ def query_success_rate_reapplicants():
     success_rate_reapplicants = round((reapplicants / total_students) * 100, 2) if total_students > 0 else 0.0
     return render_template('queries.html', success_rate_reapplicants=success_rate_reapplicants)
 
+
 @app.route('/advanced_search', methods=['POST'])
 @login_required
 def advanced_search():
     name = request.form.get('name')
-    phone = request.form.get('phone')
-    email = request.form.get('email')
-    school_name = request.form.get('school_name')
+    program = request.form.get('program_search')
     school_type = request.form.get('school_type')
-    yearapplied = request.form.get('yearapplied')
-    accepted = request.form.get('accepted')
-    reapp_accepted_same_field = request.form.get('reapp_accepted_same_field')
-    reapp_accepted_diff_field = request.form.get('reapp_accepted_diff_field')
-    degree = request.form.get('degree')
-    graduation_year = request.form.get('graduation_year')
+    #TODO school_name
 
-    # Query the database based on the provided search criteria
-    query = Student.query.join(Application)
+    query = """
+        SELECT a.year_applied, s.stu_name, sch.school_type, sch.school_name, a.program, a.accepted, s.stu_id, a.app_id
+        FROM application AS a
+        JOIN student AS s ON a.stu_id = s.stu_id
+        JOIN school AS sch ON a.school_id = sch.school_id
+        WHERE 1=1
+    """
+    params = []
 
     if name:
-        query = query.filter(Student.name.ilike(f'%{name}%'))
+        query += " AND s.stu_name LIKE %s"
+        params.append(f'%{name}%')
 
-    if phone:
-        query = query.filter(Student.phone.ilike(f'%{phone}%'))
-
-    if email:
-        query = query.filter(Student.email.ilike(f'%{email}%'))
-
-    if school_name:
-        query = query.join(School).filter(School.name.ilike(f'%{school_name}%'))
+    if program:
+        query += " AND a.program LIKE %s"
+        params.append(f'%{program}%')
 
     if school_type:
-        query = query.join(School).filter(School.typeof.ilike(f'%{school_type}%'))
+        query += " AND sch.school_type LIKE %s"
+        params.append(f'%{school_type}%')
 
-    if yearapplied:
-        query = query.join(Application).filter(Application.yearapplied == int(yearapplied))
+    applications = execute_query(query, params)
 
-    if accepted is not None:
-        query = query.join(Application).filter(Application.accepted == bool(int(accepted)))
+    return render_template('queries.html', search_results=applications,
+                           params=params)
 
-    if reapp_accepted_same_field is not None:
-        query = query.join(Application).filter(Application.reapp_accepted_same_field == bool(int(reapp_accepted_same_field)))
-
-    if reapp_accepted_diff_field is not None:
-        query = query.join(Application).filter(Application.reapp_accepted_diff_field == bool(int(reapp_accepted_diff_field)))
-
-    if degree:
-        query = query.filter(Student.degree.ilike(f'%{degree}%'))
-
-    if graduation_year:
-        query = query.filter(Student.graduation_year == int(graduation_year))
-
-    search_results = query.all()
-
-    return render_template('queries.html', total_acceptance_rate=calculate_total_acceptance_rate(),
-                           acceptance_rate_by_year=None,
-                           acceptance_rate_by_school_type=None,
-                           acceptance_rate_by_application_type=None,
-                           success_rate_for_reapplicants=None,
-                           search_results=search_results)
 
 
 @app.route('/logout')
@@ -507,6 +517,10 @@ def logout():
 @app.errorhandler(404)
 def err404(err):
     return render_template('404.html', err=err)
+
+@app.errorhandler(500)
+def err404(err):
+    return render_template('500.html', err=err)
 
 if __name__ == '__main__':
     with app.app_context():
