@@ -19,7 +19,7 @@ year = today.year
 ten_years_ago = year - 11
 
 db_config = {
-    'user': 'meddy',
+    'user': 'spardee',
     'password': 'student195',
     'host': 'radyweb.wsc.western.edu',
     'database': 'post_grad_outcome_bio'
@@ -137,37 +137,44 @@ def createstudent():
         degree = request.form.get('degree')
         graduation_year = request.form.get('graduation_year')
 
-        findStudent = ("SELECT stu_name FROM Student WHERE stu_name = %s")
-        stuParams = (name)
+        yearapplied = str(yearapplied)
+
+        if accepted == False:
+            accepted = 0
+        else:
+            accepted = 1
+
+        findStudent = "SELECT stu_name FROM Student WHERE stu_name = %s"
+        stuParams = [name]
         studentExists = execute_query(findStudent, stuParams)
         print("Student exists:", studentExists)
 
-        if studentExists == None:
-            insertStudentCMD = ("INSERT INTO student (stu_name, stu_phone, stu_email, stu_year_grad, stu_degree)"
-                            "VALUES (%s, %s, %s, %s, %s)")
-            studentData = (name, phone, email, graduation_year, degree)
+        if studentExists == None or len(studentExists) == 0:
+            insertStudentCMD = "INSERT INTO student (stu_name, stu_phone, stu_email, stu_year_grad, stu_degree VALUES (%s, %s, %s, %s, %s)"
+            studentData = [name, phone, email, graduation_year, degree]
             execute_insert(insertStudentCMD, studentData)
 
-        findSchool = ("SELECT school_name FROM School WHERE school_name = %s")
-        schoolParams = (school_name)
+        findSchool = "SELECT school_name FROM School WHERE school_name = %s"
+        schoolParams = [school_name]
         schoolExists = execute_query(findSchool, schoolParams)
 
-        if schoolExists == None:
-            insertSchoolCMD = ("INSERT INTO SCHOOL "
-                  "(school_name, school_type) "
-                  "VALUES (%s, %s)")
+        if schoolExists == None or len(schoolExists) == 0:
+            insertSchoolCMD = "INSERT INTO SCHOOL school_name, school_type) VALUES (%s, %s)"
             schoolData = (school_name, school_type)
             execute_insert(insertSchoolCMD, schoolData)
 
-        findStuId = ("SELECT stu_id FROM Student WHERE stu_name = %s")
-        stuId = execute_query(findStuId, stuParams)
+        findStuId = "SELECT stu_id FROM Student WHERE stu_name = %s"
+        stuIdResult = execute_query(findStuId, stuParams)
 
-        findSchoolId = ("SELECT school_id FROM School WHERE school_name = %s")
-        schoolId = execute_query(findSchoolId, schoolParams)
+        stuId = stuIdResult[0][0]
 
-        insertApplicationCMD = ("INSERT INTO Application (year_applied, program, accepted, stu_id, school_id"
-                                "VALUES (%s, %s, %s, %s, %s")
-        applicationData = (yearapplied, program, accepted, stuId, schoolId)
+        findSchoolId = "SELECT school_id FROM School WHERE school_name = %s"
+        schoolIdResult = execute_query(findSchoolId, schoolParams)
+
+        schoolId = schoolIdResult[0][0]
+
+        insertApplicationCMD = "INSERT INTO Application (year_applied, program, accepted, stu_id, school_id) VALUES (%s, %s, %s, %s, %s)"
+        applicationData = [yearapplied, program, accepted, stuId, schoolId]
         execute_insert(insertApplicationCMD, applicationData)
 
 
