@@ -19,7 +19,7 @@ year = today.year
 ten_years_ago = year - 11
 
 db_config = {
-    'user': 'spardee',
+    'user': 'meddy',
     'password': 'student195',
     'host': 'radyweb.wsc.western.edu',
     'database': 'post_grad_outcome_bio'
@@ -150,7 +150,7 @@ def createstudent():
         print("Student exists:", studentExists)
 
         if studentExists == None or len(studentExists) == 0:
-            insertStudentCMD = "INSERT INTO student (stu_name, stu_phone, stu_email, stu_year_grad, stu_degree VALUES (%s, %s, %s, %s, %s)"
+            insertStudentCMD = "INSERT INTO student (stu_name, stu_phone, stu_email, stu_year_grad, stu_degree) VALUES (%s, %s, %s, %s, %s)"
             studentData = [name, phone, email, graduation_year, degree]
             execute_insert(insertStudentCMD, studentData)
 
@@ -159,7 +159,7 @@ def createstudent():
         schoolExists = execute_query(findSchool, schoolParams)
 
         if schoolExists == None or len(schoolExists) == 0:
-            insertSchoolCMD = "INSERT INTO SCHOOL school_name, school_type) VALUES (%s, %s)"
+            insertSchoolCMD = "INSERT INTO SCHOOL (school_name, school_type) VALUES (%s, %s)"
             schoolData = (school_name, school_type)
             execute_insert(insertSchoolCMD, schoolData)
 
@@ -200,7 +200,7 @@ def login():
             error = 'Invalid username or password. Please try again.'
         else:
             login_user(user)
-            return redirect('/')
+            return redirect('/view_db')
 
     return render_template('login.html', error=error)
 
@@ -214,8 +214,50 @@ def view_users():
 @app.route('/view_db')
 @login_required
 def view_db():
-    tab = request.args.get('tab', 'All')
+    query_total_students = "SELECT COUNT(DISTINCT stu_id) FROM application WHERE year_applied >= %s AND accepted IS NOT NULL"
+    query_successful_students = "SELECT COUNT(DISTINCT stu_id) FROM application WHERE accepted = 1 AND year_applied >= %s"
+    total_students = execute_query(query_total_students, (ten_years_ago,))[0][0]
+    successful_students = execute_query(query_successful_students, (ten_years_ago,))[0][0]
 
+    total_success_rate = round((successful_students / total_students) * 100, 2) if total_students > 0 else 0.0
+
+    query_postgrad_accepted = "SELECT COUNT(DISTINCT stu_id) FROM application AS a JOIN school AS s ON a.school_id = s.school_id WHERE a.accepted = 1 AND a.year_applied >= %s AND s.school_type = 'postgrad'"
+    query_postgrad_applications = "SELECT COUNT(DISTINCT stu_id) FROM application AS a JOIN school AS s ON a.school_id = s.school_id WHERE a.year_applied >= %s AND s.school_type = 'postgrad' AND a.accepted IS NOT NULL"
+    postgrad_accepted = execute_query(query_postgrad_accepted, (ten_years_ago,))[0][0]
+    postgrad_applications = execute_query(query_postgrad_applications, (ten_years_ago,))[0][0]
+    postgrad_success_rate = round((postgrad_accepted / postgrad_applications) * 100,
+                                  2) if postgrad_applications > 0 else 0.0
+
+    query_healthcare_accepted = ("SELECT COUNT(DISTINCT stu_id) FROM application AS a JOIN school AS s ON a.school_id = s.school_id WHERE a.accepted = 1 AND a.year_applied >= %s AND s.school_type = 'healthcare'")
+    query_healthcare_applications = "SELECT COUNT(DISTINCT stu_id) FROM application AS a JOIN school AS s ON a.school_id = s.school_id WHERE a.year_applied >= %s AND s.school_type = 'healthcare' AND a.accepted IS NOT NULL"
+    healthcare_accepted = execute_query(query_healthcare_accepted, (ten_years_ago,))[0][0]
+    healthcare_applications = execute_query(query_healthcare_applications, (ten_years_ago,))[0][0]
+    healthcare_success_rate = round((healthcare_accepted / healthcare_applications) * 100,
+                                    2) if healthcare_applications > 0 else 0.0
+
+    query_med_prof_accepted = """
+    SELECT COUNT(DISTINCT stu_id)
+    FROM application AS a
+    JOIN school AS s ON a.school_id = s.school_id
+    WHERE a.accepted = 1
+      AND a.year_applied >= %s
+      AND s.school_type = 'healthcare'
+      AND a.program IN ('MD', 'DO', 'PA', 'DVM', 'DDS/DMD', 'PharmD', '%PT%', 'DPM', 'OT', 'OTD', 'RN', '%medical technician%', 'AT', 'AA')
+    """
+    query_med_prof_applications = """
+    SELECT COUNT(DISTINCT stu_id)
+    FROM application AS a
+    JOIN school AS s ON a.school_id = s.school_id
+    WHERE a.year_applied >= %s
+      AND s.school_type = 'healthcare'
+      AND a.program IN ('MD', 'DO', 'PA', 'DVM', 'DDS/DMD', 'PharmD', '%PT%', 'DPM', 'OT', 'OTD', 'RN', '%medical technician%', 'AT', 'AA')
+    """
+    healthcare_med_prof_accepted = execute_query(query_med_prof_accepted, (ten_years_ago,))[0][0]
+    healthcare_med_prof_applications = execute_query(query_med_prof_applications, (ten_years_ago,))[0][0]
+    healthcare_med_prof_success_rate = round((healthcare_med_prof_accepted / healthcare_med_prof_applications) * 100,
+                                             2) if healthcare_med_prof_applications > 0 else 0.0
+
+    tab = request.args.get('tab', 'All')
     if tab == 'Healthcare':
         query = """
         SELECT a.year_applied, s.stu_name, sch.school_type, sch.school_name, a.program, a.accepted, s.stu_id, a.app_id
@@ -225,6 +267,8 @@ def view_db():
         WHERE sch.school_type = 'healthcare' AND a.year_applied >= %s
         """
         applications = execute_query(query, (ten_years_ago,))
+        print(healthcare_success_rate)
+
     elif tab == 'Postgrad':
         query = """
         SELECT a.year_applied, s.stu_name, sch.school_type, sch.school_name, a.program, a.accepted, s.stu_id, a.app_id
@@ -234,6 +278,7 @@ def view_db():
         WHERE sch.school_type = 'postgrad' AND a.year_applied >= %s
         """
         applications = execute_query(query, (ten_years_ago,))
+
     else:  #'All'
         query = """
         SELECT a.year_applied, s.stu_name, sch.school_type, sch.school_name, a.program, a.accepted, s.stu_id, a.app_id
@@ -243,7 +288,19 @@ def view_db():
         """
         applications = execute_query(query)
 
-    return render_template('view_db.html', applications=applications, active_tab=tab)
+    return render_template('view_db.html', applications=applications, active_tab=tab,
+                           total_students=total_students,
+                           successful_students=successful_students,
+                           total_success_rate=total_success_rate,
+                           postgrad_accepted=postgrad_accepted,
+                           postgrad_applications=postgrad_applications,
+                           healthcare_accepted=healthcare_accepted,
+                           healthcare_applications=healthcare_applications,
+                           healthcare_success_rate=healthcare_success_rate,
+                           postgrad_success_rate=postgrad_success_rate,
+                           healthcare_med_prof_success_rate=healthcare_med_prof_success_rate,
+                           healthcare_med_prof_applications=healthcare_med_prof_applications,
+                           healthcare_med_prof_accepted=healthcare_med_prof_accepted)
 
 @app.route('/updateuser', methods=['GET', 'POST'])
 @login_required
@@ -272,9 +329,9 @@ def deleteapplication(app_id):
     flash('Application deleted successfully.', 'success')
     return redirect('view_db.html')
 
-@app.route('/add_comment/<int:id>', methods=['POST'])
+@app.route('/add_comment/<int:stu_id>', methods=['POST'])
 @login_required
-def add_comment(id):
+def add_comment(stu_id):
     student = Student.query.get(id)
 
     if not student:
@@ -294,14 +351,13 @@ def add_comment(id):
 @login_required
 def student_profile(stu_id):
     student_query = """
-    SELECT s.stu_id, s.stu_name, s.stu_email, s.stu_phone, s.stu_year_grad, s.stu_degree, 
+    SELECT s.stu_id, s.stu_name, s.stu_phone, s.stu_email, s.stu_year_grad, s.stu_degree, 
     sch.school_name, sch.school_type, a.year_applied, a.program, a.accepted
     FROM student s
     LEFT JOIN application a ON s.stu_id = a.stu_id
     LEFT JOIN school sch ON a.school_id = sch.school_id
     WHERE s.stu_id = %s
     """
-    #TODO finish the student profile to html, need to finish struct make sure profile is set.
     student_data = execute_query(student_query, (stu_id,))
     print("print student data from DB:")
     print(student_data)
@@ -309,14 +365,16 @@ def student_profile(stu_id):
         student = {
             'id': student_data[0][0],
             'name': student_data[0][1],
-            'email': student_data[0][2],
-            'phone': student_data[0][3],
-            'phone': student_data[0][3],
-            'school_name': student_data[0][4],
-            'school_type': student_data[0][5],
-            'year_applied': student_data[0][6],
-            'program': student_data[0][7],
-            'accepted': student_data[0][8]
+            'phone': student_data[0][2],
+            'email': student_data[0][3],
+            'year_grad': student_data[0][4],
+            'degree': student_data[0][5],
+            #application info
+            'school_name': student_data[0][6],
+            'school_type': student_data[0][7],
+            'year_applied': student_data[0][8],
+            'program': student_data[0][9],
+            'accepted': student_data[0][10]
         }
     else:
         flash('Student not found.', 'error')
@@ -374,29 +432,52 @@ def updatestudent(stu_id):
 
     return render_template('updatestudent.html', student=student)
 
+@app.route('/updateapplication/<int:app_id>', methods=['GET', 'POST'])
+@login_required
+def updateapplication(app_id):
+    if request.method == 'POST':
+        # Fetch the form data
+        stu_name = request.form['name']
+        stu_email = request.form['email']
+        stu_phone = request.form['phone']
+        school_name = request.form['school_name']
+        school_type = request.form['school_type']
+
+        # Update student info
+        update_student_query = """
+        UPDATE student SET stu_name = %s, stu_email = %s, stu_phone = %s WHERE stu_id = %s
+        """
+        execute_query(update_student_query, (stu_name, stu_email, stu_phone, app_id))
+
+        # Assuming school_id is directly related and unique for each student, update school info
+        update_school_query = """
+        UPDATE school SET school_name = %s, school_type = %s WHERE school_id = (
+            SELECT school_id FROM application WHERE stu_id = %s LIMIT 1
+        )
+        """
+        execute_query(update_school_query, (school_name, school_type, app_id))
+
+        flash('Student and school information updated successfully.', 'success')
+        return redirect('view_db.html')
+
+    student_query = """
+    SELECT s.stu_name, s.stu_email, s.stu_phone, sch.school_name, sch.school_type
+    FROM student s
+    JOIN application a ON s.stu_id = a.stu_id
+    JOIN school sch ON a.school_id = sch.school_id
+    WHERE s.stu_id = %s
+    """
+    student_data = execute_query(student_query, (app_id,))
+    if student_data:
+        student = student_data[0]
+    else:
+        flash('Student not found.', 'error')
+        return redirect('view_db.html')
+
+    return render_template('updatestudent.html', student=student)
+
 @app.route('/queries')
 def queries():
-    # Total accepted and total applications in the last 10 years
-    query_total_students = "SELECT COUNT(DISTINCT stu_id) FROM application WHERE year_applied >= %s AND accepted IS NOT NULL"
-    query_successful_students = "SELECT COUNT(DISTINCT stu_id) FROM application WHERE accepted = 1 AND year_applied >= %s"
-    total_students = execute_query(query_total_students, (ten_years_ago,))[0][0]
-    successful_students = execute_query(query_successful_students, (ten_years_ago,))[0][0]
-
-    total_success_rate = round((successful_students / total_students) * 100, 2) if total_students > 0 else 0.0
-
-    # Total accepted and total applications in the last 10 years by school type
-    query_postgrad_accepted = "SELECT COUNT(DISTINCT stu_id) FROM application AS a JOIN school AS s ON a.school_id = s.school_id WHERE a.accepted = 1 AND a.year_applied >= %s AND s.school_type = 'postgrad'"
-    query_postgrad_applications = "SELECT COUNT(DISTINCT stu_id) FROM application AS a JOIN school AS s ON a.school_id = s.school_id WHERE a.year_applied >= %s AND s.school_type = 'postgrad' AND a.accepted IS NOT NULL"
-    postgrad_accepted = execute_query(query_postgrad_accepted, (ten_years_ago,))[0][0]
-    postgrad_applications = execute_query(query_postgrad_applications, (ten_years_ago,))[0][0]
-    postgrad_success_rate = round((postgrad_accepted / postgrad_applications) * 100, 2) if postgrad_applications > 0 else 0.0
-
-    query_healthcare_accepted = "SELECT COUNT(DISTINCT stu_id) FROM application AS a JOIN school AS s ON a.school_id = s.school_id WHERE a.accepted = 1 AND a.year_applied >= %s AND s.school_type = 'healthcare'"
-    query_healthcare_applications = "SELECT COUNT(DISTINCT stu_id) FROM application AS a JOIN school AS s ON a.school_id = s.school_id WHERE a.year_applied >= %s AND s.school_type = 'healthcare' AND a.accepted IS NOT NULL"
-    healthcare_accepted = execute_query(query_healthcare_accepted, (ten_years_ago,))[0][0]
-    healthcare_applications = execute_query(query_healthcare_applications, (ten_years_ago,))[0][0]
-    healthcare_success_rate = round((healthcare_accepted / healthcare_applications) * 100, 2) if healthcare_applications > 0 else 0.0
-
     # Complete drop down menus
     query_school_types = "SELECT DISTINCT school_type FROM school"
     school_types = [row[0] for row in execute_query(query_school_types)]
@@ -408,18 +489,9 @@ def queries():
     school_names = [row[0] for row in execute_query(query_school_names)]
 
     return render_template('queries.html',
-                           total_success_rate=total_success_rate,
-                           postgrad_success_rate=postgrad_success_rate,
-                           healthcare_success_rate=healthcare_success_rate,
-                           total_students=total_students,
-                           postgrad_accepted=postgrad_accepted,
-                           postgrad_applications=postgrad_applications,
-                           healthcare_accepted=healthcare_accepted,
-                           healthcare_applications=healthcare_applications,
                            school_types=school_types,
                            application_types=application_types,
-                           school_names=school_names,
-                           successful_students=successful_students)
+                           school_names=school_names)
 
 @app.route('/query_acceptance_by_year', methods=['POST'])
 def query_acceptance_by_year():
@@ -495,8 +567,8 @@ def query_acceptance_by_program():
         acceptance_rate_by_program = round((successful_program_students / total_program_students) * 100, 2)
 
     return render_template('queries.html', acceptance_rate_by_program=acceptance_rate_by_program,
-                           total_students=total_program_students,
-                           successful_students=successful_program_students,
+                           total_program_students=total_program_students,
+                           successful_program_students=successful_program_students,
                            program=program,
                            message=message)
 
@@ -538,7 +610,21 @@ def query_success_rate_reapplicants():
         return render_template('queries.html', application_types=application_types)
 
 
-@app.route('/advanced_search', methods=['POST'])
+@app.route('/advanced')
+@login_required
+def advanced_search_page():
+    query_application_types = "SELECT DISTINCT program FROM application"
+    application_types = [row[0] for row in execute_query(query_application_types)]
+
+    query_school_types = "SELECT DISTINCT school_type FROM school"
+    school_types = [row[0] for row in execute_query(query_school_types)]
+
+    query_school_names = "SELECT DISTINCT school_name FROM school"
+    school_names = [row[0] for row in execute_query(query_school_names)]
+
+    return render_template('advanced.html', application_types=application_types, school_types=school_types, school_names=school_names)
+
+@app.route('/advanced', methods=['POST'])
 @login_required
 def advanced_search():
     name = request.form.get('name')
@@ -573,8 +659,7 @@ def advanced_search():
 
 
     applications = execute_query(query, params)
-    #TODO have advanced search redirect to advanced section
-    return render_template('queries.html', search_results=applications,
+    return render_template('advanced.html', search_results=applications,
                            params=params)
 
 
