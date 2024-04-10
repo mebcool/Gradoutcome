@@ -324,27 +324,23 @@ def updateuser():
 @login_required
 def deleteapplication(app_id):
     delete_app_query = "DELETE FROM application WHERE app_id = %s"
-    execute_query(delete_app_query, (app_id,))
+    execute_insert(delete_app_query, (app_id,))
 
     flash('Application deleted successfully.', 'success')
-    return redirect('view_db.html')
+    return redirect(url_for('view_db'))
+
 
 @app.route('/add_comment/<int:stu_id>', methods=['POST'])
 @login_required
 def add_comment(stu_id):
-    student = Student.query.get(id)
-
-    if not student:
-        flash("Student not found", "error")
-        return redirect('/view_db')
-
     comment_text = request.form.get('comment')
 
-    new_comment = Comment(text=comment_text, student=student)
-    db.session.add(new_comment)
-    db.session.commit()
+    # Corrected SQL query to insert a new comment
+    insert_comment_query = "INSERT INTO comments (comments, stu_id) VALUES (%s, %s)"
+    execute_insert(insert_comment_query, (comment_text, stu_id))
 
-    return redirect(url_for('student_profile', id=id))
+    flash("Comment added successfully.", "success")
+    return redirect(url_for('student_profile', stu_id=stu_id))
 
 
 @app.route('/student_profile/<int:stu_id>')
@@ -352,7 +348,7 @@ def add_comment(stu_id):
 def student_profile(stu_id):
     student_query = """
     SELECT s.stu_id, s.stu_name, s.stu_phone, s.stu_email, s.stu_year_grad, s.stu_degree, 
-    sch.school_name, sch.school_type, a.year_applied, a.program, a.accepted
+    sch.school_name, sch.school_type, a.year_applied, a.program, a.accepted, a.app_id
     FROM student s
     LEFT JOIN application a ON s.stu_id = a.stu_id
     LEFT JOIN school sch ON a.school_id = sch.school_id
@@ -374,7 +370,9 @@ def student_profile(stu_id):
             'school_type': student_data[0][7],
             'year_applied': student_data[0][8],
             'program': student_data[0][9],
-            'accepted': student_data[0][10]
+            'accepted': student_data[0][10],
+            'app_id:': student_data[0][11],
+            'comments': []
         }
     else:
         flash('Student not found.', 'error')
@@ -382,6 +380,8 @@ def student_profile(stu_id):
 
     comments_query = "SELECT comments FROM comments WHERE stu_id = %s"
     comments = execute_query(comments_query, (stu_id,))
+    if comments:
+        student['comments'] = comments
 
     return render_template('student_profile.html', student=student,
                            comments=comments,
@@ -465,7 +465,7 @@ def updateapplication(app_id):
     FROM student s
     JOIN application a ON s.stu_id = a.stu_id
     JOIN school sch ON a.school_id = sch.school_id
-    WHERE s.stu_id = %s
+    WHERE a.app_id = %s
     """
     student_data = execute_query(student_query, (app_id,))
     if student_data:
