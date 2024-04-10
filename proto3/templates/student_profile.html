@@ -1,19 +1,18 @@
 {% extends "base.html" %}
 {% block title %}Student Profile{% endblock %}
 {% block body %}
-    <h1>Student Profile</h1>
+    <h1>Student info:</h1>
     <p>Student Name: {{ student.name }}</p>
     <p>Phone: {{ student.phone }}</p>
     <p>Email: {{ student.email }}</p>
-    <p>School Type: {{ student.school.typeof if student.school else 'N/A' }}</p>
-    <p>School Name: {{ student.school.name if student.school else 'N/A' }}</p>
-    <p>Year Applied: {{ student.application.yearapplied|default('null') if student.application else 'N/A' }}</p>
-    <p>Accepted: {{ student.application.accepted|default('null') if student.application else 'N/A' }}</p>
-    <p>Reapplied and Accepted (Same Field): {{ student.application.reapp_accepted_same_field|default('null') if student.application else 'N/A' }}</p>
-    <p>Reapplied and Accepted (Diff Field): {{ student.application.reapp_accepted_diff_field|default('null') if student.application else 'N/A' }}</p>
-    <p>Degree: {{ student.degree if student.degree else 'N/A' }}</p>
-    <p>Graduation Year: {{ student.graduation_year|default('N/A') }}</p>
+    <p>Graduation Year: {{ student.year_grad }}</p>
+    <p>Degree: {{ student.degree }}</p>
 
+    <h2>Application info:</h2>
+    <p>School Name: {{ student.school_name }}</p>
+    <p>School Type: {{ student.school_type }}</p>
+    <p>Year Applied: {{ student.year_applied }}</p>
+    <p>Accepted: {% if student.accepted == 1 %}Yes{% elif student.accepted == 0 %}No{% else %}NULL{% endif %}</p>
 
     <h2>Comments:</h2>
     <ul>
@@ -22,15 +21,14 @@
         {% endfor %}
     </ul>
 
-    <form method="post" action="{{ url_for('add_comment', id=student.id) }}">
+    <form method="post" action="{{ url_for('add_comment', stu_id=student.id) }}">
         <label for="comment">Add Comment:</label>
         <textarea id="comment" name="comment" required></textarea>
         <button type="submit">Submit Comment</button>
     </form>
 
-    <a href="{{ url_for('updatestudent', id=student.id) }}">Update</a>
-    <button onclick="deleteStudent({{ student.id }})">Delete</button>
-    <a href="{{ url_for('view_db') }}">Back to View All Students</a>
+    <a href="{{ url_for('updatestudent', stu_id=stu_id) }}" class="btn">Update</a>
+    <button onclick="deleteApplication({{ stu_id }})" class="btn">Delete</button>
 
     <script>
         function deleteStudent(studentId) {
