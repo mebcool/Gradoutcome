@@ -675,6 +675,150 @@ def advanced_search():
     return render_template('advanced.html', search_results=applications,
                            params=params)
 
+@app.route('/tables')
+def tables():
+
+
+    query_programs = """
+        SELECT DISTINCT program
+        FROM application AS a
+        JOIN school AS s ON a.school_id = s.school_id
+        WHERE a.year_applied >= %s
+          AND s.school_type = 'healthcare'
+    """
+    healthcare_programs = [row[0] for row in execute_query(query_programs, (ten_years_ago,))]
+
+    # Initialize lists to store program data
+    healthcare_program_data = []
+
+    # Initialize variables for total counts
+    total_accepted_healthcare = 0
+    total_total_students_healthcare = 0
+
+    # Iterate through each program
+    for program in healthcare_programs:
+        # Query for accepted students count
+        query_accepted = """
+            SELECT COUNT(DISTINCT stu_id)
+            FROM application AS a
+            JOIN school AS s ON a.school_id = s.school_id
+            WHERE a.accepted = 1
+              AND a.year_applied >= %s
+              AND s.school_type = 'healthcare'
+              AND a.program = %s
+        """
+        accepted_count = execute_query(query_accepted, (ten_years_ago, program))[0][0]
+
+        # Query for total unique students count
+        query_total_students = """
+            SELECT COUNT(DISTINCT stu_id)
+            FROM application AS a
+            JOIN school AS s ON a.school_id = s.school_id
+            WHERE a.year_applied >= %s
+              AND s.school_type = 'healthcare'
+              AND a.program = %s
+              AND a.accepted IS NOT NULL
+        """
+        total_students = execute_query(query_total_students, (ten_years_ago, program))[0][0]
+
+        # Calculate acceptance rate
+        acceptance_rate = round((accepted_count / total_students) * 100, 2) if total_students > 0 else 0.0
+
+        # Add program data to the list
+        healthcare_program_data.append((program, accepted_count, total_students, acceptance_rate))
+
+        # Update total counts
+        if program != 'MD' and program != 'DO':
+            total_accepted_healthcare += accepted_count
+            total_total_students_healthcare += total_students
+
+    # Add 'MD+DO' row
+    query_med_prof_accepted = """
+        SELECT COUNT(DISTINCT stu_id)
+        FROM application AS a
+        JOIN school AS s ON a.school_id = s.school_id
+        WHERE a.accepted = 1
+          AND a.year_applied >= %s
+          AND s.school_type = 'healthcare'
+          AND a.program IN ('MD', 'DO')
+    """
+    query_med_prof_applications = """
+        SELECT COUNT(DISTINCT stu_id)
+        FROM application AS a
+        JOIN school AS s ON a.school_id = s.school_id
+        WHERE a.year_applied >= %s
+          AND s.school_type = 'healthcare'
+          AND a.program IN ('MD', 'DO')
+    """
+    md_do_accepted = execute_query(query_med_prof_accepted, (ten_years_ago,))[0][0]
+    md_do_applications = execute_query(query_med_prof_applications, (ten_years_ago,))[0][0]
+    md_do_acceptance_rate = round((md_do_accepted / md_do_applications) * 100, 2) if md_do_applications > 0 else 0.0
+
+    healthcare_program_data.append(('MD+DO', md_do_accepted, md_do_applications, md_do_acceptance_rate))
+
+    # Add 'total' row including 'MD+DO'
+    total_accepted_healthcare += md_do_accepted
+    total_total_students_healthcare += md_do_applications
+    total_acceptance_rate_healthcare = round((total_accepted_healthcare / total_total_students_healthcare) * 100, 2) if total_total_students_healthcare > 0 else 0.0
+    healthcare_program_data.append(('Total', total_accepted_healthcare, total_total_students_healthcare, total_acceptance_rate_healthcare))
+
+    # Postgraduate programs
+    query_postgrad_programs = """
+        SELECT DISTINCT program
+        FROM application AS a
+        JOIN school AS s ON a.school_id = s.school_id
+        WHERE a.year_applied >= %s
+          AND s.school_type = 'postgrad'
+    """
+    postgrad_programs = [row[0] for row in execute_query(query_postgrad_programs, (ten_years_ago,))]
+
+    postgrad_program_data = []
+
+    # Initialize variables for total counts
+    total_accepted_postgrad = 0
+    total_total_students_postgrad = 0
+
+    # Iterate through each program
+    for program in postgrad_programs:
+        # Query for accepted students count
+        query_accepted = """
+            SELECT COUNT(DISTINCT stu_id)
+            FROM application AS a
+            JOIN school AS s ON a.school_id = s.school_id
+            WHERE a.accepted = 1
+              AND a.year_applied >= %s
+              AND s.school_type = 'postgrad'
+              AND a.program = %s
+        """
+        accepted_count = execute_query(query_accepted, (ten_years_ago, program))[0][0]
+
+        # Query for total unique students count
+        query_total_students = """
+            SELECT COUNT(DISTINCT stu_id)
+            FROM application AS a
+            JOIN school AS s ON a.school_id = s.school_id
+            WHERE a.year_applied >= %s
+              AND s.school_type = 'postgrad'
+              AND a.program = %s
+              AND a.accepted IS NOT NULL
+        """
+        total_students = execute_query(query_total_students, (ten_years_ago, program))[0][0]
+
+        # Calculate acceptance rate
+        acceptance_rate = round((accepted_count / total_students) * 100, 2) if total_students > 0 else 0.0
+
+        # Add program data to the list
+        postgrad_program_data.append((program, accepted_count, total_students, acceptance_rate))
+
+        # Update total counts
+        total_accepted_postgrad += accepted_count
+        total_total_students_postgrad += total_students
+
+    # Add 'total' row for postgrad
+    total_acceptance_rate_postgrad = round((total_accepted_postgrad / total_total_students_postgrad) * 100, 2) if total_total_students_postgrad > 0 else 0.0
+    postgrad_program_data.append(('Total', total_accepted_postgrad, total_total_students_postgrad, total_acceptance_rate_postgrad))
+
+    return render_template('tables.html', healthcare_program_data=healthcare_program_data, postgrad_program_data=postgrad_program_data)
 
 
 @app.route('/logout')
