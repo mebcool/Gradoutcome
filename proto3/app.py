@@ -461,20 +461,33 @@ def updateapplication(app_id):
         return redirect('view_db.html')
 
     student_query = """
-    SELECT s.stu_name, s.stu_email, s.stu_phone, sch.school_name, sch.school_type
-    FROM student s
-    JOIN application a ON s.stu_id = a.stu_id
-    JOIN school sch ON a.school_id = sch.school_id
-    WHERE a.app_id = %s
+        SELECT a.year_applied, a.program, a.accepted, a.stu_id, a.school_id, stu.stu_name, sch.school_name, sch.school_type
+        FROM application a
+        JOIN student stu ON a.stu_id = stu.stu_id
+        JOIN school sch ON a.school_id = sch.school_id
+        WHERE a.app_id = %s
     """
+
     student_data = execute_query(student_query, (app_id,))
     if student_data:
-        student = student_data[0]
+        if student_data[0][2] == 1:
+            accepted = True
+        else:
+            accepted = False
+        application = {
+            'id': app_id,
+            'name': student_data[0][5],
+            'yearapp': student_data[0][0],
+            'program': student_data[0][1],
+            'accepted': accepted,
+            'schoolname': student_data[0][6],
+            'schooltype': student_data[0][7]
+        }
     else:
         flash('Student not found.', 'error')
         return redirect('view_db.html')
 
-    return render_template('updatestudent.html', student=student)
+    return render_template('updateapplication.html', application=application)
 
 @app.route('/queries')
 def queries():
