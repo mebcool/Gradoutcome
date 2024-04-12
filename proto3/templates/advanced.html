@@ -1,0 +1,87 @@
+{% extends "base.html" %}
+{% block title %}Advanced Search{% endblock %}
+{% block body %}
+    <h2>Advanced Search</h2>
+    <form id="advanced-search-form" method="post" action="/advanced">
+        <label for="name">Student Name:</label>
+        <input type="text" id="name" name="name">
+
+        <label for="program_search">Program:</label>
+        <select id="program_search" name="program_search">
+            <option value="">-- Select Program --</option>
+            {% for type in application_types %}
+                <option value="{{ type }}">{{ type }}</option>
+            {% endfor %}
+        </select>
+
+        <label for="school_name">School Name:</label>
+        <select id="school_name" name="school_name">
+            <option value="">-- Select School Name --</option>
+            {% for type in school_names %}
+                <option value="{{ type }}">{{ type }}</option>
+            {% endfor %}
+        </select>
+
+        <label for="school_type">School Type:</label>
+        <select id="school_type" name="school_type">
+            <option value="">-- Select School Type --</option>
+            {% for type in school_types %}
+                <option value="{{ type }}">{{ type }}</option>
+            {% endfor %}
+        </select><br><br>
+
+        <button type="submit">Search</button>
+        <button type="button" onclick="window.location.href='/advanced';" class="btn">Back</button>
+    </form>
+    <br><br>
+
+  {% if search_results %}
+    <h1>Showing Search results for {{ params }}</h1>
+<div class="table-wrap">
+    <table class="sortable">
+        <caption>Search Results</caption>
+        <thead>
+            <tr>
+                <th>
+                    <button>Year Applied <span aria-hidden="true"></span></button>
+                </th>
+                <th>
+                    <button>Student Name <span aria-hidden="true"></span></button>
+                </th>
+                <th>
+                    <button>School Type <span aria-hidden="true"></span></button>
+                </th>
+                <th>
+                    <button>School Name <span aria-hidden="true"></span></button>
+                </th>
+                <th>
+                    <button>Program/Degree Path <span aria-hidden="true"></span></button>
+                </th>
+                <th>
+                    <button>Accepted? <span aria-hidden="true"></span></button>
+                </th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+        {% for application in search_results %}
+        <tr>
+            <td>{{ application[0] }}</td>
+            <td>{{ application[1] }}</td>
+            <td>{{ application[2] }}</td>
+            <td>{{ application[3] }}</td>
+            <td>{{ application[4] }}</td>
+            <td>{{ 'Yes' if application[5] else 'No' }}</td>
+            <td>
+                <a href="{{ url_for('updatestudent', stu_id=application[6]) }}" class="btn">Update</a>
+                <a href="{{ url_for('student_profile', stu_id=application[6]) }}" class="btn">Profile</a>
+                <button onclick="deleteApplication({{ application[7] }})" class="btn">Delete</button>
+            </td>
+        </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+</div>
+    {% endif %}
+<script src="static/sortable-table.js"></script>
+{% endblock %}
