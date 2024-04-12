@@ -5,29 +5,24 @@
     {% if error %}
         <p style="color: red;">{{ error }}</p>
     {% endif %}
-    <form method="post" action="/updateapplication/{{ student.id }}">
-        <label for="name">Name:</label>
-        <input type="text" name="name" value="{{ student.name }}" required><br>
-        <label for="email">Email:</label>
-        <input type="email" name="email" value="{{ student.email }}"><br>
-        <label for="phone">Phone:</label>
-        <input type="text" name="phone" value="{{ student.phone }}"><br>
+
+    <p>Student: {{application.name}}</p>
+    <form method="post" action="/updateapplication/{{ application.id }}">
 
         <!-- Fields for School Information -->
         <label for="school_name">School Name:</label>
-        <input type="text" name="school_name" value="{{ student.school.name if student.school else '' }}" required><br>
+        <input type="text" name="school_name" value="{{ application.schoolname}}" required><br>
         <label for="school_type">School Type (Medical or Grad):</label>
-        <input type="text" name="school_type" value="{{ student.school.typeof if student.school else '' }}" required><br>
+        <input type="text" name="school_type" value="{{ application.schooltype}}" required><br>
 
        <!-- Fields for Application Information -->
         <label for="yearapplied">Year Applied:</label>
-        <input type="number" name="yearapplied" value="{{ student.application.yearapplied if student.application else '' }}" required><br>
+        <input type="number" name="yearapplied" value="{{application.yearapp}}" required><br>
+        <label for="program">Program:</label>
+        <input type="text" name="app_program" value="{{application.program}}" required><br>
         <label for="accepted">Accepted?</label>
-        <input type="checkbox" name="accepted" {% if student.application and student.application.accepted %}checked{% endif %}><br>
-        <label for="reapp_accepted_same_field">Reapplied and Accepted (Same Field)?</label>
-        <input type="checkbox" name="reapp_accepted_same_field" {% if student.application and student.application.reapp_accepted_same_field %}checked{% endif %}><br>
-        <label for="reapp_accepted_diff_field">Reapplied and Accepted (Diff Field)?</label>
-        <input type="checkbox" name="reapp_accepted_diff_field" {% if student.application and student.application.reapp_accepted_diff_field %}checked{% endif %}><br>
+        <input type="checkbox" name="accepted" value="{{application.accepted}}"><br>
+
 
         <button type="submit">Update Student</button>
     </form>
