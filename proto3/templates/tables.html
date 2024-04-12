@@ -1,0 +1,47 @@
+{% extends "base.html" %}
+{% block title %}Tables{% endblock %}
+{% block body %}
+    <h1>Acceptance Rate by Program - Healthcare</h1>
+    <table>
+        <thead>
+            <tr>
+                <th>Program</th>
+                <th># Accepted</th>
+                <th># Total Unique Students</th>
+                <th>Percentage</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for program, accepted, total_students, acceptance_rate in healthcare_program_data %}
+                <tr>
+                    <td>{{ program }}</td>
+                    <td>{{ accepted }}</td>
+                    <td>{{ total_students }}</td>
+                    <td>{{ acceptance_rate }}%</td>
+                </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+
+    <h1>Acceptance Rate by Program - Postgraduate</h1>
+    <table>
+        <thead>
+            <tr>
+                <th>Program</th>
+                <th># Accepted</th>
+                <th># Total Unique Students</th>
+                <th>Percentage</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for program, accepted, total_students, acceptance_rate in postgrad_program_data %}
+                <tr>
+                    <td>{{ program }}</td>
+                    <td>{{ accepted }}</td>
+                    <td>{{ total_students }}</td>
+                    <td>{{ acceptance_rate }}%</td>
+                </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+{% endblock %}
