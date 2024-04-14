@@ -2,9 +2,9 @@
 {% extends "base.html" %}
 {% block title %}Queries{% endblock %}
 {% block body %}
+<h1>Category Student Success Rates</h1>
 
-
-    <h1>Student Success Rate by Application Year Range</h1>
+    <h2>Application Year Range</h2>
     <form action="/query_acceptance_by_year" method="post">
         <label for="start_year">Start Year:</label>
         <input type="text" id="start_year" name="start_year"><br><br>
@@ -19,7 +19,7 @@
     <p>{{ message }}</p>
 {% endif %}
     <hr width="100%" size="5">
-    <h1 id="school-name-form">Student Success Rate by School Name (last 10 years)</h1>
+    <h2 id="school-name-form">School Name (last 10 years)</h2>
     <form action="/query_acceptance_by_school_name#school-name-form" method="post">
     <label for="school_name">School name:</label>
     <select id="school_name" name="school_name">
@@ -36,7 +36,7 @@
     <p>{{ message }}</p>
 {% endif %}
     <hr width="100%" size="5">
-    <h1>Success Rate by Program (last 10 years)</h1>
+    <h2>Program (last 10 years)</h2>
     <form action="/query_acceptance_by_program" method="post">
     <label for="program">Program:</label>
     <select id="program" name="program">
@@ -53,7 +53,7 @@
     <p>{{ message }}</p>
 {% endif %}
     <hr width="100%" size="5">
-<h1>Success Rate for Reapplicants (last 10 years)</h1>
+<h2>Reapplicants (last 10 years)</h2>
 <form action="/query_success_rate_reapplicants" method="post">
     <label for="program">Select Program:</label>
     <select id="program_re" name="program">
