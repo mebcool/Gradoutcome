@@ -437,25 +437,53 @@ def updatestudent(stu_id):
 def updateapplication(app_id):
     if request.method == 'POST':
         # Fetch the form data
-        stu_name = request.form['name']
-        stu_email = request.form['email']
-        stu_phone = request.form['phone']
         school_name = request.form['school_name']
         school_type = request.form['school_type']
+        year_applied = request.form["yearapplied"]
+        program = request.form['app_program']
+        accepted = request.form['accepted']
 
-        # Update student info
-        update_student_query = """
-        UPDATE student SET stu_name = %s, stu_email = %s, stu_phone = %s WHERE stu_id = %s
-        """
-        execute_query(update_student_query, (stu_name, stu_email, stu_phone, app_id))
+        if accepted == True:
+            accepted = 1
+        else:
+            accepted = 0
 
-        # Assuming school_id is directly related and unique for each student, update school info
-        update_school_query = """
-        UPDATE school SET school_name = %s, school_type = %s WHERE school_id = (
-            SELECT school_id FROM application WHERE stu_id = %s LIMIT 1
-        )
+        find_Ids = """
+            SELECT a.school_id, a.stu_id, sh.school_name FROM application a
+            JOIN school sh ON a.school_id = sh.school_id
+            WHERE app_id = %s
         """
-        execute_query(update_school_query, (school_name, school_type, app_id))
+        idResult = execute_query(find_Ids, [app_id])
+
+        if idResult[0][3] != school_name:
+
+            find_School = """
+                SELECT school_id FROM school WHERE school_name = %s
+            """
+            new_school = execute_query(find_School, [school_name])
+            if new_school == None or len(new_school) == 0:
+                insert_new_school = """
+                    INSERT INTO school (school_name, school_type) VALUES (%s, %s)
+                """
+                execute_insert(insert_new_school, [school_name, school_type])
+
+                new_school_id = """
+                    SELECT school_id FROM school WHERE school_name = %s
+                """
+                new_sch_id = execute_query(new_school_id, [school_name])
+                school_id = new_sch_id[0][0]
+            school_id = new_school[0][0]
+        else:
+            school_id = idResult[0][0]
+        stu_id = idResult[0][1]
+
+        update_app = """
+            UPDATE application 
+            SET year_applied = %s, program = %s accepted = %s, stu_id = %s, school_id = %s
+            WHERE app_id = %s
+        """
+
+        execute_insert(update_app, [year_applied, program, accepted, stu_id, school_id])
 
         flash('Student and school information updated successfully.', 'success')
         return redirect('view_db.html')
