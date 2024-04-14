@@ -392,43 +392,39 @@ def student_profile(stu_id):
 @login_required
 def updatestudent(stu_id):
     if request.method == 'POST':
-        # Fetch the form data
-        stu_name = request.form['name']
-        stu_email = request.form['email']
-        stu_phone = request.form['phone']
-        school_name = request.form['school_name']
-        school_type = request.form['school_type']
+        stu_name = request.form.get('name', '')
+        stu_email = request.form.get('email', '')
+        stu_phone = request.form.get('phone', '')
+        stu_year_grad = request.form.get('year_grad', '')
+        stu_degree = request.form.get('degree', '')
 
-        # Update student info
         update_student_query = """
-        UPDATE student SET stu_name = %s, stu_email = %s, stu_phone = %s WHERE stu_id = %s
+        UPDATE student SET stu_name = %s, stu_email = %s, stu_phone = %s, stu_year_grad = %s, stu_degree = %s WHERE stu_id = %s
         """
-        execute_query(update_student_query, (stu_name, stu_email, stu_phone, stu_id))
+        execute_insert(update_student_query, (stu_name, stu_email, stu_phone, stu_year_grad, stu_degree, stu_id))
 
-        # Assuming school_id is directly related and unique for each student, update school info
-        update_school_query = """
-        UPDATE school SET school_name = %s, school_type = %s WHERE school_id = (
-            SELECT school_id FROM application WHERE stu_id = %s LIMIT 1
-        )
-        """
-        execute_query(update_school_query, (school_name, school_type, stu_id))
+        flash('Student information updated successfully.', 'success')
+        return redirect(url_for('view_db')) #view_db
 
-        flash('Student and school information updated successfully.', 'success')
-        return redirect('view_db.html')
-
+    # Fetch student's existing data for GET request
     student_query = """
-    SELECT s.stu_name, s.stu_email, s.stu_phone, sch.school_name, sch.school_type
-    FROM student s
-    JOIN application a ON s.stu_id = a.stu_id
-    JOIN school sch ON a.school_id = sch.school_id
-    WHERE s.stu_id = %s
+    SELECT stu_id, stu_name, stu_email, stu_phone, stu_year_grad, stu_degree
+    FROM student WHERE stu_id = %s
     """
     student_data = execute_query(student_query, (stu_id,))
     if student_data:
-        student = student_data[0]
+        student = {
+            'stu_id': stu_id,
+            'stu_name': student_data[0][1],
+            'stu_email': student_data[0][2],
+            'stu_phone': student_data[0][3],
+            'stu_year_grad': student_data[0][4],
+            'stu_degree': student_data[0][5]
+        }
     else:
         flash('Student not found.', 'error')
-        return redirect('view_db.html')
+        print(student_data)
+        return redirect(url_for('view_db'))
 
     return render_template('updatestudent.html', student=student)
 
