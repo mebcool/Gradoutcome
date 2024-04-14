@@ -14,7 +14,7 @@
         <button type="button" onclick="window.location.href='/queries';" class="btn">Back</button>
     </form>
     {% if acceptance_rate_by_year != 'N/A' %}
-    <p>Student Success Rate in the specified year({{ start_year }} - {{ end_year }}) range: {{ successful_year_students }} accepted / {{ total_year_students }} total = {{ acceptance_rate_by_year }}%</p>
+    <p>Student Success Rate in the specified year({{ start_year }} - {{ end_year }}) range: {{ successful_year_students }} accepted / {{ total_year_students }} total = <span style="font-size: 20px; font-weight: bold;">{{ acceptance_rate_by_year }}%</span></p>
 {% else %}
     <p>{{ message }}</p>
 {% endif %}
@@ -31,7 +31,7 @@
         <button type="button" onclick="window.location.href='/queries';" class="btn">Back</button>
     </form>
     {% if acceptance_rate_by_school_name != 'N/A' %}
-    <p>Student Success Rate for the specified school name ({{ school_name }}): {{ successful_name_students }} accepted / {{ total_name_students }} total = {{ acceptance_rate_by_school_name }}%</p>
+    <p>Student Success Rate for the specified school name ({{ school_name }}): {{ successful_name_students }} accepted / {{ total_name_students }} total = <span style="font-size: 20px; font-weight: bold;">{{ acceptance_rate_by_school_name }}%</span></p>
 {% else %}
     <p>{{ message }}</p>
 {% endif %}
@@ -48,7 +48,7 @@
         <button type="button" onclick="window.location.href='/queries';" class="btn">Back</button>
     </form>
     {% if acceptance_rate_by_program != 'N/A' %}
-    <p>Student Success Rate for specified program({{ program }}): {{ successful_program_students }} accepted / {{ total_program_students }} total = {{ acceptance_rate_by_program }}%</p>
+    <p>Student Success Rate for specified program({{ program }}): {{ successful_program_students }} accepted / {{ total_program_students }} total = <span style="font-size: 20px; font-weight: bold;">{{ acceptance_rate_by_program }}%</span></p>
 {% else %}
     <p>{{ message }}</p>
 {% endif %}
@@ -66,7 +66,7 @@
     <button type="button" onclick="window.location.href='/queries';" class="btn">Back</button>
 </form>
     {% if success_rate_reapplicants != 'N/A' %}
-    <p>Reacceptance Rate for the specified Program ({{ program_re }}): {{ success_rate_reapplicants }}%</p>
+    <p>Reacceptance Rate for the specified Program ({{ program_re }}): <span style="font-size: 20px; font-weight: bold;">{{ success_rate_reapplicants }}%</span></p>
 {% else %}
     <p>{{ message }}</p>
 {% endif %}
