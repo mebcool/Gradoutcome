@@ -21,7 +21,11 @@
         <label for="program">Program:</label>
         <input type="text" name="app_program" value="{{application.program}}" required><br>
         <label for="accepted">Accepted?</label>
-        <input type="checkbox" name="accepted" value="{{application.accepted}}"><br>
+        {% if application.accepted == True%}
+        <input type="checkbox" name="accepted" checked><br>
+        {% else %}
+        <input type="checkbox" name="accepted"><br>
+        {% endif %}
 
 
         <button type="submit">Update Student</button>
