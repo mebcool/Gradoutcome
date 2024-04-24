@@ -21,14 +21,7 @@
                 <option value="{{ type }}">{{ type }}</option>
             {% endfor %}
         </select>
-
-        <label for="school_type">School Type:</label>
-        <select id="school_type" name="school_type">
-            <option value="">-- Select School Type --</option>
-            {% for type in school_types %}
-                <option value="{{ type }}">{{ type }}</option>
-            {% endfor %}
-        </select><br><br>
+        <br><br>
 
         <button type="submit">Search</button>
         <button type="button" onclick="window.location.href='/advanced';" class="btn">Back</button>
