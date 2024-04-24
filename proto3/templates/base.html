@@ -7,15 +7,16 @@
 </head>
 <body>
     <div class="navbar">
-        {% if current_user.is_authenticated %}
+        {% if current_user.permission == 1 %}
         <div class="dropdown">
             <button class="dropbtn">User Control</button>
             <div class="dropdown-content">
                 <a href="/createuser">Create new user</a>
                 <a href="/view_users">View All Users</a>
-                <a href="/updateuser">Update user</a>
             </div>
         </div>
+        {% endif %}
+        {% if current_user.is_authenticated %}
         <div class="dropdown">
             <button class="dropbtn">Applications</button>
             <div class="dropdown-content">
