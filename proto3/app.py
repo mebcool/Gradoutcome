@@ -437,12 +437,14 @@ def updateapplication(app_id):
         school_type = request.form['school_type']
         year_applied = request.form["yearapplied"]
         program = request.form['app_program']
-        accepted = request.form['accepted']
+        print("accepted =", request.form.get('accepted'))
 
-        if accepted == True:
+        if request.form.get('accepted') == "on":
             accepted = 1
         else:
             accepted = 0
+
+        print("accpeted = ", accepted)
 
         find_Ids = """
             SELECT a.school_id, a.stu_id, sh.school_name FROM application a
@@ -450,8 +452,9 @@ def updateapplication(app_id):
             WHERE app_id = %s
         """
         idResult = execute_query(find_Ids, [app_id])
+        idResultSchoolName = idResult[0][2]
 
-        if idResult[0][3] != school_name:
+        if  idResultSchoolName != school_name:
 
             find_School = """
                 SELECT school_id FROM school WHERE school_name = %s
@@ -475,14 +478,17 @@ def updateapplication(app_id):
 
         update_app = """
             UPDATE application 
-            SET year_applied = %s, program = %s accepted = %s, stu_id = %s, school_id = %s
+            SET year_applied = %s, program = %s, accepted = %s, school_id = %s
             WHERE app_id = %s
         """
 
-        execute_insert(update_app, [year_applied, program, accepted, stu_id, school_id])
+        updateParams = [year_applied, program, accepted, school_id, app_id]
+        print("updateParams = ", updateParams)
+        execute_insert(update_app, updateParams)
 
         flash('Student and school information updated successfully.', 'success')
-        return redirect('view_db.html')
+        print("succsess")
+        return redirect(url_for('view_db'))
 
     student_query = """
         SELECT a.year_applied, a.program, a.accepted, a.stu_id, a.school_id, stu.stu_name, sch.school_name, sch.school_type
@@ -512,7 +518,6 @@ def updateapplication(app_id):
         return redirect('view_db.html')
 
     return render_template('updateapplication.html', application=application)
-
 @app.route('/queries')
 def queries():
     # Complete drop down menus
