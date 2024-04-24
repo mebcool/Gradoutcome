@@ -10,8 +10,11 @@
         <input type="text" name="username" required><br>
         <label for="password">Password:</label>
         <input type="password" name="password" required><br>
+        <label for="permission">Permission Level:</label>
+        <select name="permission" required>
+            <option value="1">Admin</option>
+            <option value="2">User</option>
+        </select><br>
         <button type="submit">Create Account</button>
     </form>
 {% endblock %}
-
-
