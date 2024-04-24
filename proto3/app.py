@@ -19,8 +19,8 @@ year = today.year
 ten_years_ago = year - 11
 
 db_config = {
-    'user': 'meddy',
-    'password': 'student195',
+    'user': 'PostGrad',
+    'password': 'BiologyP0$tGrad',
     'host': 'radyweb.wsc.western.edu',
     'database': 'post_grad_outcome_bio'
 }
@@ -55,72 +55,68 @@ def execute_insert(insert, params):
             cursor.close()
             cnx.close()
 
-##code below is outdated, back when the DB was in flask and SQL alchemy, not MySQL...
-class Student(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    name = db.Column(db.String(50), nullable=False)
-    phone = db.Column(db.Integer, nullable=True)
-    email = db.Column(db.String(50), nullable=True)
-    school_id = db.Column(db.Integer, db.ForeignKey('school.id'), unique=True, nullable=True)
-    school = db.relationship('School', back_populates='student', uselist=False)
-    application = db.relationship('Application', backref='student', lazy=True)
-    comments = db.relationship('Comment', backref='student', lazy=True)
-    degree = db.Column(db.String(50), nullable=True)
-    graduation_year = db.Column(db.Integer, nullable=True)
+#https://flask-login.readthedocs.io/en/latest/ Flask + sql integration for user authentication.
+class User:
+    def __init__(self, user_id, username, permission):
+        self.id = user_id
+        self.username = username
+        self.permission = permission
 
-class School(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    name = db.Column(db.String(50), nullable=False)
-    typeof = db.Column(db.String(50), nullable=False)
-    student = db.relationship('Student', back_populates='school', uselist=False)
+    def is_authenticated(self):
+        return True
 
-class Application(UserMixin, db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    yearapplied = db.Column(db.Integer, nullable=False)
-    accepted = db.Column(db.Boolean, nullable=True)
-    reapp_accepted_same_field = db.Column(db.Boolean, nullable=True)
-    reapp_accepted_diff_field = db.Column(db.Boolean, nullable=True)
-    student_id = db.Column(db.Integer, db.ForeignKey('student.id'), nullable=False)
-    school_id = db.Column(db.Integer, db.ForeignKey('school.id'), nullable=False)
+    def is_active(self):
+        return True
 
-class Comment(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    text = db.Column(db.Text, nullable=False)
-    student_id = db.Column(db.Integer, db.ForeignKey('student.id'), nullable=False)
+    def is_anonymous(self):
+        return False
 
-class User(UserMixin, db.Model): # for authentication, only authenticated users can manage the database
-    id = db.Column(db.Integer, primary_key=True)
-    username = db.Column(db.String(20), unique=True, nullable=False)
-    password = db.Column(db.String(60), nullable=False)
+    def get_id(self):
+        return str(self.id)
 
+    @staticmethod
+    def get(user_id):
+        query = "SELECT user_id, user_name, permission FROM db_user JOIN permission ON db_user.permission_id = permission.permission_id WHERE user_id = %s"
+        result = execute_query(query, (user_id,))
+        if result:
+            return User(result[0][0], result[0][1], result[0][2])
+        return None
 
 @login_manager.user_loader
-def load_user(uid):
-    user = User.query.get(uid)
-    return user
+def load_user(user_id):
+    return User.get(user_id)
 
 @app.route('/')
 def index():
     return render_template('index.html')
 
 @app.route('/createuser', methods=['GET', 'POST'])
+@login_required
 def createuser():
+    if current_user.permission != 1:
+        return redirect(url_for('index'))
     error = None
     if request.method == 'POST':
         username = request.form['username']
         password = request.form['password']
+        permission = request.form['permission']
 
-        if User.query.filter_by(username=username).first():
-            return render_template('createuser.html', error='Username already taken. Please choose another one.')
+        check_query = "SELECT user_id FROM db_user WHERE user_name = %s"
+        existing_user = execute_query(check_query, (username,))
+        if existing_user:
+            return render_template('createuser.html', error='Username already taken')
 
-        new_user = User(username=username, password=password)
-        db.session.add(new_user)
-        db.session.commit()
+        insert_query = "INSERT INTO db_user (user_name, password, permission_id) VALUES (%s, %s, %s)"
+        execute_insert(insert_query, (username, password, int(permission)))
+
+        new_user_id = execute_query("SELECT LAST_INSERT_ID()")[0][0]
+        new_user = User(new_user_id, username, int(permission))
 
         login_user(new_user)
         return redirect('/')
 
     return render_template('createuser.html', error=error)
+
 
 @app.route('/createstudent', methods=['GET', 'POST'])
 @login_required
@@ -177,38 +173,83 @@ def createstudent():
         applicationData = [yearapplied, program, accepted, stuId, schoolId]
         execute_insert(insertApplicationCMD, applicationData)
 
-
-        # Add print statements for debugging
-        print(f"yearapplied: {yearapplied}")
-        print(f"accepted: {accepted}")
-
-
         return redirect(url_for('view_db'))
 
     return render_template('createstudent.html')
 
 @app.route('/login', methods=['GET', 'POST'])
 def login():
-    error = None
     if request.method == 'POST':
         username = request.form['username']
         password = request.form['password']
 
-        user = User.query.filter_by(username=username).first()
-
-        if not user or password != user.password:
-            error = 'Invalid username or password. Please try again.'
-        else:
+        query = "SELECT user_id, password, permission_id FROM db_user WHERE user_name = %s"
+        result = execute_query(query, (username,))
+        if result and result[0][1] == password:
+            user = User(result[0][0], username, result[0][2])
             login_user(user)
-            return redirect('/view_db')
+            return redirect('view_db')
+        flash('Invalid username or password')
+    return render_template('login.html')
 
-    return render_template('login.html', error=error)
 
 @app.route('/view_users')
 @login_required
 def view_users():
-    users = User.query.all()
-    return render_template('view_users.html', users=users)
+    if current_user.permission != 1:
+        flash("You do not have permission to view this page.", "error")
+        return redirect(url_for('index'))
+
+    query = "SELECT user_id, user_name, password FROM db_user"
+    users = execute_query(query)
+
+    user_list = [{'id': user[0], 'username': user[1], 'password': user[2]} for user in users]
+
+    return render_template('view_users.html', users=user_list)
+
+@app.route('/deleteuser/<int:user_id>')
+@login_required
+def delete_user(user_id):
+        if current_user.permission != 1:
+            flash("You do not have permission to perform this action.", "error")
+            return redirect(url_for('index'))
+
+        check_query = "SELECT user_id FROM db_user WHERE user_id = %s"
+        user_exists = execute_query(check_query, (user_id,))
+
+        if not user_exists:
+            flash("User not found.", "error")
+            return redirect('/view_users')
+
+        delete_query = "DELETE FROM db_user WHERE user_id = %s"
+        execute_insert(delete_query, (user_id,))
+
+        flash('User deleted successfully.', 'success')
+        return redirect('/view_users')
+
+@app.route('/updatepassword/<int:user_id>', methods=['GET'])
+@login_required
+def update_password(user_id):
+    if current_user.permission != 1:
+        return redirect(url_for('index'))
+
+    new_password = request.args.get('new_password')
+    if not new_password:
+        flash('New password must be provided.', 'error')
+        return redirect(url_for('view_users'))
+
+    user_query = "SELECT user_id FROM db_user WHERE user_id = %s"
+    user = execute_query(user_query, (user_id,))
+    if not user:
+        flash('User not found.', 'error')
+        return redirect(url_for('view_users'))
+
+    update_query = "UPDATE db_user SET password = %s WHERE user_id = %s"
+    execute_insert(update_query, (new_password, user_id))
+
+    flash('Password updated successfully.', 'success')
+    return redirect('/view_users')
+
 
 
 @app.route('/view_db')
@@ -301,24 +342,6 @@ def view_db():
                            healthcare_med_prof_success_rate=healthcare_med_prof_success_rate,
                            healthcare_med_prof_applications=healthcare_med_prof_applications,
                            healthcare_med_prof_accepted=healthcare_med_prof_accepted)
-
-@app.route('/updateuser', methods=['GET', 'POST'])
-@login_required
-def updateuser():
-    error = None
-    if request.method == 'POST':
-        current_password = request.form['current_password']
-        new_password = request.form['new_password']
-
-        if current_password != current_user.password:
-            error = 'Current password is incorrect. Please try again.'
-        else:
-            current_user.password = new_password
-            db.session.commit()
-            return redirect('/')
-
-    return render_template('updateuser.html', error=error)
-
 
 @app.route('/deleteapplication/<int:app_id>')
 @login_required
@@ -432,7 +455,6 @@ def updatestudent(stu_id):
 @login_required
 def updateapplication(app_id):
     if request.method == 'POST':
-        # Fetch the form data
         school_name = request.form['school_name']
         school_type = request.form['school_type']
         year_applied = request.form["yearapplied"]
@@ -518,6 +540,7 @@ def updateapplication(app_id):
         return redirect('view_db.html')
 
     return render_template('updateapplication.html', application=application)
+
 @app.route('/queries')
 def queries():
     # Complete drop down menus
@@ -706,8 +729,6 @@ def advanced_search():
 
 @app.route('/tables')
 def tables():
-
-
     query_programs = """
         SELECT DISTINCT program
         FROM application AS a
