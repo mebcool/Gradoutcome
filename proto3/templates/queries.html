@@ -53,20 +53,20 @@
     <p>{{ message }}</p>
 {% endif %}
     <hr width="100%" size="5">
-<h2>Reapplicants (last 10 years)</h2>
-<form action="/query_success_rate_reapplicants" method="post">
-    <label for="program">Select Program:</label>
-    <select id="program_re" name="program">
-        {% for program in application_types %}
-        <option value="{{ program }}">{{ program }}</option>
-        {% endfor %}
-    </select>
-    <br><br>
-    <input type="submit" value="Submit">
-    <button type="button" onclick="window.location.href='/queries';" class="btn">Back</button>
-</form>
-    {% if success_rate_reapplicants != 'N/A' %}
-    <p>Reacceptance Rate for the specified Program ({{ program_re }}): <span class="percentage">{{ success_rate_reapplicants }}</span>%</p>
+<!--<h2>Reapplicants (last 10 years)</h2>-->
+<!--<form action="/query_success_rate_reapplicants" method="post">-->
+<!--    <label for="program">Select Program:</label>-->
+<!--    <select id="program_re" name="program">-->
+<!--        {% for program in application_types %}-->
+<!--        <option value="{{ program }}">{{ program }}</option>-->
+<!--        {% endfor %}-->
+<!--    </select>-->
+<!--    <br><br>-->
+<!--    <input type="submit" value="Submit">-->
+<!--    <button type="button" onclick="window.location.href='/queries';" class="btn">Back</button>-->
+<!--</form>-->
+<!--    {% if success_rate_reapplicants != 'N/A' %}-->
+<!--    <p>Reacceptance Rate for the specified Program ({{ program_re }}): <span class="percentage">{{ success_rate_reapplicants }}</span>%</p>-->
 {% else %}
     <p>{{ message }}</p>
 {% endif %}
