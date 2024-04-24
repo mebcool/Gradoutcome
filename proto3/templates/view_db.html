@@ -5,11 +5,11 @@
 {% block title %}View All Users{% endblock %}
 {% block body %}
 
-    <p>Total Student Success Rate: {{ successful_students }} Successful / {{ total_students }} Total =  <span class="percentage">{{ total_success_rate }}</span>% for Biology students</p>
+    <p>Total Student Success Rate(last 10 years): {{ successful_students }} Successful / {{ total_students }} Total =  <span class="percentage">{{ total_success_rate }}</span>% for Biology students</p>
 
-    <p>Total Postgrad Student Success Rate: {{ postgrad_accepted }} Accepted / {{ postgrad_applications }} Total =  <span class="percentage">{{ postgrad_success_rate }}</span>% for Postgrad students</p>
+    <p>Total Postgrad Student Success Rate(last 10 years): {{ postgrad_accepted }} Accepted / {{ postgrad_applications }} Total =  <span class="percentage">{{ postgrad_success_rate }}</span>% for Postgrad students</p>
 
-    <p>Total Healthcare Student Success Rate: {{ healthcare_accepted }} Accepted /  {{ healthcare_applications }} Total =  <span class="percentage">{{ healthcare_success_rate }}</span>% for Healthcare Students</p>
+    <p>Total Healthcare Student Success Rate(last 10 years): {{ healthcare_accepted }} Accepted /  {{ healthcare_applications }} Total =  <span class="percentage">{{ healthcare_success_rate }}</span>% for Healthcare Students</p>
 
 <div class="tabs">
     <a href="/view_db?tab=All" class="tablink {% if active_tab == 'All' %}active{% endif %}">All Applications</a><br>
